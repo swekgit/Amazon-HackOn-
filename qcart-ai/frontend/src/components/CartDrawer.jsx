@@ -28,26 +28,26 @@ export default function CartDrawer() {
         animate={{ x: 0 }}
         exit={{ x: "100%" }}
         transition={{ type: "spring", damping: 30, stiffness: 300 }}
-        className="fixed top-0 right-0 z-50 h-full w-full max-w-md bg-white/95 backdrop-blur-xl shadow-2xl flex flex-col"
+        className="fixed top-0 right-0 z-50 h-full w-full max-w-md bg-white shadow-2xl flex flex-col"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-black/5">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div className="flex items-center gap-2">
             <ShoppingCart size={20} className="text-smart" />
-            <h2 className="font-display text-lg font-bold">Your Cart</h2>
+            <h2 className="font-display text-lg font-bold text-ink">Your Cart</h2>
             {cart.length > 0 && (
               <span className="rounded-full bg-smart-soft px-2 py-0.5 text-xs font-semibold text-smart-dark">
                 {cart.length} items
               </span>
             )}
           </div>
-          <button onClick={() => setCartOpen(false)} className="p-2 rounded-lg hover:bg-black/5 transition">
+          <button onClick={() => setCartOpen(false)} className="p-2 rounded-lg hover:bg-canvas transition">
             <X size={20} />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 bg-canvas">
           <AnimatePresence mode="wait">
             {placed ? (
               <motion.div
@@ -64,7 +64,7 @@ export default function CartDrawer() {
                 >
                   <CheckCircle2 className="text-fresh" size={40} />
                 </motion.div>
-                <h3 className="font-display text-2xl font-bold">Order Placed! 🎉</h3>
+                <h3 className="font-display text-2xl font-bold text-ink">Order Placed! 🎉</h3>
                 <p className="mt-2 flex items-center gap-1.5 text-ink/60">
                   <Zap size={16} className="text-fresh" /> Arriving in 10 minutes
                 </p>
@@ -90,7 +90,7 @@ export default function CartDrawer() {
                     <div className="flex flex-wrap gap-2">
                       {meta.suggestions.map((s) => (
                         <button key={s.id} onClick={() => addProduct(s)}
-                          className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-sm text-ink/70 ring-1 ring-black/10 transition hover:ring-smart">
+                          className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-sm text-ink/70 ring-1 ring-border transition hover:ring-smart">
                           <Plus size={13} /> {s.name} · {formatINR(s.price)}
                         </button>
                       ))}
@@ -118,14 +118,14 @@ export default function CartDrawer() {
 
         {/* Checkout footer */}
         {hasCart && !placed && (
-          <div className="border-t border-black/5 p-5 bg-white">
+          <div className="border-t border-border p-5 bg-white">
             <div className="flex items-end justify-between mb-4">
               <span className="text-sm text-ink/60">Subtotal</span>
-              <span className="font-display text-2xl font-bold">{formatINR(subtotal)}</span>
+              <span className="font-display text-2xl font-bold text-ink">{formatINR(subtotal)}</span>
             </div>
             <button
               onClick={() => setPlaced(true)}
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-smart to-smart-dark py-4 font-display font-semibold text-white shadow-lg shadow-smart/20 hover:shadow-xl hover:shadow-smart/30 transition-all"
+              className="w-full flex items-center justify-center gap-2 rounded-full bg-amazonYellow py-4 font-display font-bold text-ink shadow-md hover:shadow-lg hover:bg-yellow-400 transition-all"
             >
               <Zap size={18} />
               Place Order · 10 min delivery

@@ -38,7 +38,7 @@ export default function App() {
   const { cartOpen, chatOpen } = useApp();
 
   return (
-    <div className="min-h-screen relative bg-gradient-to-b from-slate-50 via-white to-slate-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 text-gray-900 dark:text-gray-100 overflow-x-hidden">
+    <div className="min-h-screen relative bg-white text-gray-900 overflow-x-hidden">
       {/* Rain effect overlay for rainy theme */}
       <RainEffect />
 
@@ -56,7 +56,7 @@ export default function App() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-50px" }}
-          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12"
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6"
         >
           <MissionCards />
         </motion.section>
@@ -67,7 +67,7 @@ export default function App() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-50px" }}
-          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12"
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6"
         >
           <BuyAgainNow />
         </motion.section>
@@ -78,7 +78,7 @@ export default function App() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-50px" }}
-          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12"
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6"
         >
           <OfferBanners />
         </motion.section>
@@ -89,7 +89,7 @@ export default function App() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-50px" }}
-          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12"
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6"
         >
           <AIRecommendations />
         </motion.section>
@@ -100,7 +100,7 @@ export default function App() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-50px" }}
-          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12"
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6"
         >
           <TrendingMoments />
         </motion.section>

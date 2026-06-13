@@ -4,16 +4,16 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: "#16161A",
-        canvas: "#F6F5F2",
+        ink: "#111111",
+        canvas: "#F7F8FA",
         smart: {
-          DEFAULT: "#5B41F0",
-          dark: "#4530c9",
-          soft: "#ECE9FE",
+          DEFAULT: "#FF9900",
+          dark: "#E88A00",
+          soft: "#FFF4E0",
         },
         fresh: {
-          DEFAULT: "#0EA46E",
-          soft: "#DCFCE7",
+          DEFAULT: "#00A650",
+          soft: "#E6F9ED",
         },
         amazon: {
           DEFAULT: "#FF9900",
@@ -25,6 +25,9 @@ export default {
           DEFAULT: "#00A8E1",
           dark: "#007EB5",
         },
+        amazonYellow: "#FFD814",
+        headerBg: "#DFF4FF",
+        border: "#E5E7EB",
       },
       fontFamily: {
         display: ['"Space Grotesk"', "system-ui", "sans-serif"],
@@ -52,8 +55,8 @@ export default {
           "50%": { transform: "translateY(-6px)" },
         },
         glow: {
-          "0%, 100%": { boxShadow: "0 0 20px rgba(91, 65, 240, 0.3)" },
-          "50%": { boxShadow: "0 0 40px rgba(91, 65, 240, 0.6)" },
+          "0%, 100%": { boxShadow: "0 0 20px rgba(255, 153, 0, 0.3)" },
+          "50%": { boxShadow: "0 0 40px rgba(255, 153, 0, 0.5)" },
         },
       },
       animation: {
