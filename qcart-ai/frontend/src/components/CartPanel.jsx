@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Zap, CheckCircle2, Plus } from "lucide-react";
 import CartItem from "./CartItem.jsx";
+import ReadinessPanel from "./ReadinessPanel.jsx";
 import { formatINR } from "../lib/format.js";
 
-export default function CartPanel({ cart, subtotal, suggestions, theme, onQty, onRemove, onAdd }) {
+export default function CartPanel({ cart, subtotal, suggestions, readiness, theme, onQty, onRemove, onAdd }) {
   const [placed, setPlaced] = useState(false);
 
   if (placed) {
@@ -22,6 +23,9 @@ export default function CartPanel({ cart, subtotal, suggestions, theme, onQty, o
 
   return (
     <div>
+      {/* Readiness score — renders above cart items */}
+      <ReadinessPanel readiness={readiness} onAdd={onAdd} />
+
       <div className="space-y-3">
         {cart.map((item, i) => (
           <CartItem key={item.id} item={item} index={i} onQty={onQty} onRemove={onRemove} />

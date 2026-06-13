@@ -55,6 +55,7 @@ export function AppProvider({ children }) {
           threshold: res.free_delivery_threshold,
           gapFillers: res.gap_fillers || [],
           suggestions: res.suggestions || [],
+          readiness: res.readiness || null,
           buildTime,
         });
         setMessages((m) => [...m, { role: "assistant", text: res.reply }]);

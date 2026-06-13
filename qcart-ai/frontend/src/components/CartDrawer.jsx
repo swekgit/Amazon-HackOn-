@@ -8,6 +8,7 @@ import { useApp } from "../state/AppContext.jsx";
 import CartItem from "./CartItem.jsx";
 import AICartSummary from "./AICartSummary.jsx";
 import GapNudge from "./GapNudge.jsx";
+import ReadinessPanel from "./ReadinessPanel.jsx";
 import { formatINR } from "../lib/format.js";
 
 /* ── Clear-Cart Confirmation Modal ─────────────────────────── */
@@ -204,6 +205,13 @@ export default function CartDrawer() {
               <motion.div key="cart" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                 {/* AI Summary */}
                 {hasCart && <AICartSummary />}
+
+                {/* Readiness Score */}
+                {hasCart && (
+                  <div className="mt-3">
+                    <ReadinessPanel readiness={meta.readiness} onAdd={addProduct} />
+                  </div>
+                )}
 
                 {/* Cart items */}
                 <div className="space-y-2.5 mt-4">
