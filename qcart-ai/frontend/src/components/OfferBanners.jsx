@@ -1,14 +1,62 @@
 import { useRef } from "react";
 import { motion } from "framer-motion";
-import { Tag, ChevronLeft, ChevronRight } from "lucide-react";
+import { Tag, ChevronLeft, ChevronRight, Truck, Zap, Scissors } from "lucide-react";
 
 const OFFERS = [
-  { title: "Flat ₹50 Off", subtitle: "On your first AI-curated cart", emoji: "🎁", gradient: "from-violet-500 to-purple-700", code: "QCART50" },
-  { title: "Free Delivery", subtitle: "On orders above ₹199", emoji: "🚚", gradient: "from-emerald-500 to-green-700", code: "FREE199" },
-  { title: "10-Min Delivery", subtitle: "Guaranteed or ₹25 cashback", emoji: "⚡", gradient: "from-amber-500 to-orange-600", code: null },
-  { title: "Party Special", subtitle: "20% off on party supplies this weekend", emoji: "🎉", gradient: "from-pink-500 to-rose-600", code: "PARTY20" },
-  { title: "Baby Essentials", subtitle: "Buy 2 Get 1 Free on baby care", emoji: "👶", gradient: "from-sky-400 to-blue-600", code: "BABY3" },
-  { title: "Coffee Lovers", subtitle: "₹30 cashback on coffee orders", emoji: "☕", gradient: "from-amber-700 to-yellow-900", code: "COFFEE30" },
+  {
+    title: "Flat ₹50 Off",
+    subtitle: "On your first AI-curated cart",
+    emoji: "🎁",
+    code: "QCART50",
+    tagColor: "bg-smart text-white",
+    bgColor: "bg-gradient-to-r from-amber-50 to-orange-50",
+    accentColor: "border-smart",
+  },
+  {
+    title: "Free Delivery",
+    subtitle: "On orders above ₹199",
+    emoji: "🚚",
+    code: "FREE199",
+    tagColor: "bg-fresh text-white",
+    bgColor: "bg-gradient-to-r from-emerald-50 to-green-50",
+    accentColor: "border-fresh",
+  },
+  {
+    title: "10-Min Delivery",
+    subtitle: "Guaranteed or ₹25 cashback",
+    emoji: "⚡",
+    code: null,
+    tagColor: "bg-amazonYellow text-ink",
+    bgColor: "bg-gradient-to-r from-yellow-50 to-amber-50",
+    accentColor: "border-amazonYellow",
+  },
+  {
+    title: "Party Special",
+    subtitle: "20% off on party supplies this weekend",
+    emoji: "🎉",
+    code: "PARTY20",
+    tagColor: "bg-pink-500 text-white",
+    bgColor: "bg-gradient-to-r from-pink-50 to-rose-50",
+    accentColor: "border-pink-300",
+  },
+  {
+    title: "Baby Essentials",
+    subtitle: "Buy 2 Get 1 Free on baby care",
+    emoji: "👶",
+    code: "BABY3",
+    tagColor: "bg-sky-500 text-white",
+    bgColor: "bg-gradient-to-r from-sky-50 to-blue-50",
+    accentColor: "border-sky-300",
+  },
+  {
+    title: "Coffee Lovers",
+    subtitle: "₹30 cashback on coffee orders",
+    emoji: "☕",
+    code: "COFFEE30",
+    tagColor: "bg-amber-700 text-white",
+    bgColor: "bg-gradient-to-r from-amber-50 to-yellow-50",
+    accentColor: "border-amber-300",
+  },
 ];
 
 export default function OfferBanners() {
@@ -21,22 +69,22 @@ export default function OfferBanners() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Tag size={20} className="text-smart" />
-          <h2 className="font-display text-xl sm:text-2xl font-bold">Deals & Offers</h2>
+          <Tag size={18} className="text-smart" />
+          <h2 className="font-display text-lg sm:text-xl font-bold text-ink">Deals & Offers</h2>
         </div>
         <div className="hidden sm:flex gap-1">
-          <button onClick={() => scroll(-1)} className="p-2 rounded-lg hover:bg-white/60 ring-1 ring-black/5 transition">
+          <button onClick={() => scroll(-1)} className="p-2 rounded-lg hover:bg-canvas ring-1 ring-border transition">
             <ChevronLeft size={16} />
           </button>
-          <button onClick={() => scroll(1)} className="p-2 rounded-lg hover:bg-white/60 ring-1 ring-black/5 transition">
+          <button onClick={() => scroll(1)} className="p-2 rounded-lg hover:bg-canvas ring-1 ring-border transition">
             <ChevronRight size={16} />
           </button>
         </div>
       </div>
 
-      <div ref={scrollRef} className="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x-mandatory">
+      <div ref={scrollRef} className="flex gap-3 overflow-x-auto no-scrollbar pb-3 snap-x-mandatory">
         {OFFERS.map((offer, i) => (
           <motion.div
             key={offer.title}
@@ -44,17 +92,29 @@ export default function OfferBanners() {
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ delay: i * 0.07, duration: 0.4 }}
             viewport={{ once: true }}
-            whileHover={{ scale: 1.03, y: -2 }}
-            className={`shrink-0 w-[280px] rounded-2xl bg-gradient-to-br ${offer.gradient} p-6 text-white cursor-pointer
-              shadow-lg hover:shadow-xl transition-shadow relative overflow-hidden`}
+            whileHover={{ scale: 1.02, y: -2 }}
+            className={`shrink-0 w-[280px] rounded-xl ${offer.bgColor} p-5 cursor-pointer
+              border-l-4 ${offer.accentColor}
+              shadow-sm hover:shadow-md transition-all relative overflow-hidden ring-1 ring-border`}
           >
-            <div className="absolute -bottom-4 -right-4 w-24 h-24 rounded-full bg-white/10 blur-lg" />
-            <span className="text-3xl">{offer.emoji}</span>
-            <h3 className="mt-3 font-display text-lg font-bold">{offer.title}</h3>
-            <p className="mt-1 text-sm text-white/80">{offer.subtitle}</p>
+            {/* Offer tag */}
+            <span className={`inline-block ${offer.tagColor} text-xs font-bold px-2.5 py-1 rounded-md mb-3`}>
+              {offer.emoji} {offer.title}
+            </span>
+
+            <p className="text-sm text-ink/70 leading-snug">{offer.subtitle}</p>
+
             {offer.code && (
-              <div className="mt-3 inline-block rounded-lg bg-white/20 px-3 py-1 text-xs font-mono font-bold tracking-wider">
-                {offer.code}
+              <div className="mt-3 inline-flex items-center gap-1.5 rounded-md border-2 border-dashed border-smart/40 bg-white px-3 py-1.5">
+                <Scissors size={12} className="text-smart" />
+                <span className="text-xs font-mono font-bold text-smart tracking-wider">{offer.code}</span>
+              </div>
+            )}
+
+            {!offer.code && (
+              <div className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-fresh">
+                <Zap size={12} />
+                <span>Auto-applied</span>
               </div>
             )}
           </motion.div>

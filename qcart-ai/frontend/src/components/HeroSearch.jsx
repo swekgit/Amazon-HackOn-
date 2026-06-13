@@ -1,18 +1,18 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Loader2, MessageCircle, Mic, Sparkles } from "lucide-react";
+import { ArrowRight, Loader2, MessageCircle, Mic, Sparkles, Search } from "lucide-react";
 import { useApp } from "../state/AppContext.jsx";
 import VoiceButton from "./VoiceButton.jsx";
 
 const PLACEHOLDERS = [
-  "Movie night for 4",
-  "Rainy day snacks",
-  "Guests arriving in 1 hour",
+  "Rainy Day comfort food",
+  "Guests at Home in 1 hour",
+  "Movie Night for 4",
+  "Party for 6 people",
+  "Study Session fuel",
+  "Late Night Cravings",
   "Morning breakfast",
-  "Party for 6",
-  "Study session fuel",
   "Feeling under the weather",
-  "Late night cravings",
 ];
 
 export default function HeroSearch() {
@@ -72,11 +72,23 @@ export default function HeroSearch() {
   ];
 
   return (
-    <section id="hero-search" className="relative pt-24 pb-12 sm:pt-32 sm:pb-16 overflow-hidden">
-      {/* Background glow */}
+    <section
+      id="hero-search"
+      className="relative pt-18 pb-4 sm:pt-20 sm:pb-6 overflow-hidden"
+      style={{ paddingTop: "4.5rem" }}
+    >
+      {/* Theme-tinted hero background */}
+      <div
+        className="absolute inset-0 pointer-events-none transition-all duration-700"
+        style={{
+          background: `linear-gradient(180deg, ${theme.gradientFrom} 0%, ${theme.gradientTo} 60%, #FFFFFF 100%)`,
+        }}
+      />
+
+      {/* Subtle accent glow */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-20 blur-3xl"
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[200px] rounded-full opacity-10 blur-3xl"
           style={{ background: `radial-gradient(circle, ${theme.accent}40, transparent 70%)` }}
         />
       </div>
@@ -88,48 +100,53 @@ export default function HeroSearch() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         >
-          <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.1] tracking-tight">
-            Don't search.{" "}
+          <h1 className="font-display text-2xl sm:text-3xl font-bold leading-[1.1] tracking-tight text-ink">
+            Tell us your moment.{" "}
             <span
               className="text-gradient bg-gradient-to-r"
               style={{
                 backgroundImage: `linear-gradient(135deg, ${theme.accent}, ${theme.accent}CC)`,
               }}
             >
-              Just say your moment.
+              AI builds your cart.
             </span>
           </h1>
-          <p className="mt-4 text-base sm:text-lg text-ink/50 max-w-xl mx-auto">
-            AI builds your checkout-ready cart in seconds. Describe what you need — we handle the rest.
+          <p className="mt-2 text-sm sm:text-base text-ink/50 max-w-xl mx-auto">
+            Checkout-ready cart in seconds · Delivered in 10 minutes
           </p>
         </motion.div>
 
-        {/* Search bar */}
+        {/* Search bar — Amazon Now style */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-          className="mt-8 sm:mt-10"
+          className="mt-5 sm:mt-6"
         >
-          <div className="relative flex items-center gap-2 rounded-2xl bg-white/90 backdrop-blur-sm p-2 pl-5 ring-1 ring-black/10 shadow-xl shadow-black/5 focus-within:ring-2 focus-within:ring-smart transition-all">
+          <div
+            className="relative flex items-center gap-2 rounded-full bg-white p-1.5 pl-5 ring-1 ring-border shadow-lg shadow-black/5 focus-within:ring-2 transition-all"
+            style={{ boxShadow: `0 4px 20px ${theme.glow}` }}
+          >
+            <Search size={18} className="text-ink/30 shrink-0" />
             <div className="relative min-w-0 flex-1">
               <input
                 ref={inputRef}
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && submit()}
-                className="w-full bg-transparent py-3 text-lg text-ink placeholder:text-transparent focus:outline-none"
+                className="w-full bg-transparent py-2.5 text-base text-ink placeholder:text-transparent focus:outline-none"
                 placeholder={displayedPlaceholder}
               />
               {/* Animated placeholder overlay */}
               {!text && (
                 <div className="absolute inset-0 flex items-center pointer-events-none">
-                  <span className="text-lg text-ink/30">
+                  <span className="text-base text-ink/30">
                     {displayedPlaceholder}
                     <motion.span
                       animate={{ opacity: [1, 0] }}
                       transition={{ repeat: Infinity, duration: 0.8 }}
-                      className="inline-block w-0.5 h-5 bg-smart/60 ml-0.5 align-middle"
+                      className="inline-block w-0.5 h-5 ml-0.5 align-middle"
+                      style={{ backgroundColor: `${theme.accent}90` }}
                     />
                   </span>
                 </div>
@@ -140,22 +157,22 @@ export default function HeroSearch() {
 
             <button
               onClick={() => setChatOpen(true)}
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white text-ink ring-1 ring-black/10 hover:ring-smart transition"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-ink ring-1 ring-border hover:ring-smart/40 transition"
               aria-label="Open chat"
             >
-              <MessageCircle size={18} />
+              <MessageCircle size={16} />
             </button>
 
             <button
               onClick={() => submit()}
               disabled={loading || !text.trim()}
               aria-label="Search"
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-smart hover:bg-smart-dark text-white transition disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-smart"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-amazonYellow hover:bg-yellow-400 text-ink transition disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-smart"
             >
               {loading ? (
-                <Loader2 size={20} className="animate-spin" />
+                <Loader2 size={18} className="animate-spin" />
               ) : (
-                <ArrowRight size={20} />
+                <ArrowRight size={18} />
               )}
             </button>
           </div>
@@ -166,7 +183,7 @@ export default function HeroSearch() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
-          className="mt-5 flex flex-wrap justify-center gap-2"
+          className="mt-4 flex flex-wrap justify-center gap-2"
         >
           <span className="text-xs text-ink/40 self-center mr-1">Try:</span>
           {quickPicks.map((qp) => (
@@ -174,7 +191,7 @@ export default function HeroSearch() {
               key={qp.label}
               onClick={() => submit(qp.intent)}
               disabled={loading}
-              className="rounded-full px-3.5 py-1.5 text-sm bg-white/70 text-ink/60 ring-1 ring-black/5 hover:ring-smart/40 hover:text-ink transition disabled:opacity-40"
+              className="rounded-full px-3.5 py-1.5 text-sm bg-white text-ink/60 ring-1 ring-border hover:ring-smart/40 hover:text-ink transition disabled:opacity-40"
             >
               {qp.label}
             </button>
@@ -186,7 +203,7 @@ export default function HeroSearch() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="mt-6 inline-flex items-center gap-1.5 text-xs text-ink/35"
+          className="mt-3 inline-flex items-center gap-1.5 text-xs text-ink/35"
         >
           <Sparkles size={12} />
           <span>Powered by AI · 10-min delivery</span>

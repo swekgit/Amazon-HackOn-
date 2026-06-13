@@ -22,7 +22,7 @@ function AnimatedNumber({ value, suffix = "" }) {
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
   }, [value, suffix]);
-  return <span className="font-display font-bold">{display}{suffix}</span>;
+  return <span className="font-display font-bold text-ink">{display}{suffix}</span>;
 }
 
 export default function AICartSummary() {
@@ -34,7 +34,7 @@ export default function AICartSummary() {
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl bg-gradient-to-r from-smart-soft/80 to-smart-soft/40 p-4 ring-1 ring-smart/10"
+      className="rounded-xl bg-gradient-to-r from-smart-soft/80 to-amber-50/60 p-4 ring-1 ring-smart/15"
     >
       {/* AI label */}
       <div className="flex items-center gap-1.5 mb-2">
@@ -49,17 +49,17 @@ export default function AICartSummary() {
 
       {/* Metrics */}
       <div className="grid grid-cols-3 gap-2">
-        <div className="rounded-xl bg-white/70 p-2.5 text-center">
+        <div className="rounded-lg bg-white p-2.5 text-center ring-1 ring-border">
           <Zap size={14} className="mx-auto text-smart mb-1" />
           <AnimatedNumber value={meta.buildTime} suffix="s" />
           <p className="text-[10px] text-ink/40 mt-0.5">Built in</p>
         </div>
-        <div className="rounded-xl bg-white/70 p-2.5 text-center">
+        <div className="rounded-lg bg-white p-2.5 text-center ring-1 ring-border">
           <Clock size={14} className="mx-auto text-amber-500 mb-1" />
           <AnimatedNumber value={minutes} suffix=" min" />
           <p className="text-[10px] text-ink/40 mt-0.5">Saved</p>
         </div>
-        <div className="rounded-xl bg-white/70 p-2.5 text-center">
+        <div className="rounded-lg bg-white p-2.5 text-center ring-1 ring-border">
           <MousePointer size={14} className="mx-auto text-fresh mb-1" />
           <AnimatedNumber value={taps} />
           <p className="text-[10px] text-ink/40 mt-0.5">Taps saved</p>
