@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Loader2, Sparkles, Tag, TrendingUp } from "lucide-react";
+import { useApp } from "../state/AppContext.jsx";
 
 const CUSTOMERS = [
   { label: "Ravi", value: "cust_ravi" },
@@ -12,8 +13,9 @@ const CUSTOMERS = [
   { label: "Meera", value: "cust_meera" },
 ];
 
-export default function ForYou({ addProduct }) {
+export default function ForYou({  }) {
   const [customerId, setCustomerId] = useState("cust_ananya");
+  const { city,  addProduct  } = useApp();
   const [data, setData] = useState(null);
 
   const [loading, setLoading] = useState(true);
@@ -22,8 +24,8 @@ export default function ForYou({ addProduct }) {
   const [trending, setTrending] = useState(null);
 
   useEffect(() => {
-    loadForYou(customerId);
-  }, [customerId]);
+  loadForYou(customerId);
+}, [customerId, city]);
 
   async function loadForYou(id) {
     try {
@@ -41,7 +43,9 @@ export default function ForYou({ addProduct }) {
 
       // optional trending endpoint
       try {
-        const trendRes = await fetch("/api/trending?city=Bengaluru");
+        const trendRes = await fetch(
+  `/api/trending?city=${encodeURIComponent(city)}`
+);
 
         if (trendRes.ok) {
           const trendJson = await trendRes.json();
