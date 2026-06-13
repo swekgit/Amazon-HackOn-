@@ -3,20 +3,20 @@
 @tailwind utilities;
 
 :root {
-  --theme-gradient-from: #F6F5F2;
-  --theme-gradient-to: #EDE9FE;
-  --theme-accent: #5B41F0;
-  --theme-accent-soft: #ECE9FE;
-  --theme-text: #16161A;
-  --theme-surface: rgba(255, 255, 255, 0.85);
-  --theme-glow: rgba(91, 65, 240, 0.15);
+  --theme-gradient-from: #FFFFFF;
+  --theme-gradient-to: #F7F8FA;
+  --theme-accent: #FF9900;
+  --theme-accent-soft: #FFF4E0;
+  --theme-text: #111111;
+  --theme-surface: rgba(255, 255, 255, 0.95);
+  --theme-glow: rgba(255, 153, 0, 0.15);
 }
 
 html { -webkit-font-smoothing: antialiased; }
 
 body {
   margin: 0;
-  background: linear-gradient(135deg, var(--theme-gradient-from), var(--theme-gradient-to));
+  background: #FFFFFF;
   color: var(--theme-text);
   font-family: theme("fontFamily.sans");
   transition: background 0.8s cubic-bezier(0.4, 0, 0.2, 1),
@@ -45,8 +45,8 @@ body {
 /* Glassmorphism utility */
 .glass {
   background: var(--theme-surface);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 /* Scroll snap for carousels */
