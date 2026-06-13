@@ -2,18 +2,86 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --theme-gradient-from: #F6F5F2;
+  --theme-gradient-to: #EDE9FE;
+  --theme-accent: #5B41F0;
+  --theme-accent-soft: #ECE9FE;
+  --theme-text: #16161A;
+  --theme-surface: rgba(255, 255, 255, 0.85);
+  --theme-glow: rgba(91, 65, 240, 0.15);
+}
+
 html { -webkit-font-smoothing: antialiased; }
 
 body {
   margin: 0;
-  background-color: theme("colors.canvas");
-  color: theme("colors.ink");
+  background: linear-gradient(135deg, var(--theme-gradient-from), var(--theme-gradient-to));
+  color: var(--theme-text);
   font-family: theme("fontFamily.sans");
+  transition: background 0.8s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.5s ease;
+  min-height: 100vh;
+}
+
+/* Smooth scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.25); }
+
+/* Skeleton shimmer */
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Glassmorphism utility */
+.glass {
+  background: var(--theme-surface);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* Scroll snap for carousels */
+.snap-x-mandatory {
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+.snap-x-mandatory > * {
+  scroll-snap-align: start;
+}
+
+/* Hide scrollbar for carousels */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Rain drops */
+.rain-drop {
+  position: fixed;
+  width: 2px;
+  background: linear-gradient(to bottom, transparent, rgba(174, 194, 224, 0.5));
+  pointer-events: none;
+  z-index: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 }
