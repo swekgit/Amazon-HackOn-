@@ -1,0 +1,71 @@
+# React
+node_modules/
+.kiro
+
+# Python
+.venv/
+venv/
+
+# Env files
+.env
+.env.local
+
+# Build files
+dist/
+build/
+
+# Python cache
+__pycache__/
+*.pyc
+# Python
+
+**pycache**/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Virtual environments
+
+.venv/
+venv/
+env/
+backend/.venv/
+backend/venv/
+
+# Environment variables
+
+.env
+.env.*
+
+# Logs
+
+*.log
+
+# VS Code
+
+.vscode/
+
+# OS files
+
+.DS_Store
+Thumbs.db
+
+# Frontend
+
+node_modules/
+dist/
+build/
+
+# Coverage
+
+.coverage
+htmlcov/
+
+# Kiro generated cache
+
+.kiro/cache/
+
+# Python packaging
+
+*.egg-info/

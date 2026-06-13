@@ -61,9 +61,30 @@ def cart_turn(turn: CartTurn):
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(502, f"Could not reach the brain: {exc}")
 
+    # 2b) Apply fallback defaults for any missing keys
+    FALLBACK_DEFAULTS = {
+        "reply": "Here's your cart.",
+        "context": "routine",
+        "urgency": "normal",
+        "cart": [],
+        "suggestions": [],
+    }
+    for key, default in FALLBACK_DEFAULTS.items():
+        if key not in result:
+            result[key] = default
+
+    # 2c) Validate urgency and context values
+    VALID_URGENCY = {"high", "normal"}
+    VALID_CONTEXT = {"movie_night", "party", "health", "baby", "routine", "late_night", "other"}
+
+    if result["urgency"] not in VALID_URGENCY:
+        result["urgency"] = "normal"
+    if result["context"] not in VALID_CONTEXT:
+        result["context"] = "routine"
+
     # 3) validate + enrich cart
     cart_lines = []
-    for picked in result.get("cart", []):
+    for picked in result["cart"]:
         line = catalog.enrich(
             picked.get("product_id"),
             picked.get("quantity", 1),
@@ -78,22 +99,22 @@ def cart_turn(turn: CartTurn):
     # 4) suggestions (validate ids)
     suggestions = []
     in_cart = {l["id"] for l in cart_lines}
-    for s in result.get("suggestions", []):
+    for s in result["suggestions"]:
         p = catalog.get(s.get("product_id"))
         if p and p["id"] not in in_cart:
             suggestions.append({"id": p["id"], "name": p["name"],
                                 "price": p["price"], "reason": s.get("reason", "")})
 
-    context = result.get("context", "routine")
+    context = result["context"]
     subtotal = sum(l["line_total"] for l in cart_lines)
 
     # 5) gap engine
     gap_info = gap.compute(cart_lines, context)
 
     payload = {
-        "reply": result.get("reply", "Here's your cart."),
+        "reply": result["reply"],
         "context": context,
-        "urgency": result.get("urgency", "normal"),
+        "urgency": result["urgency"],
         "cart": cart_lines,
         "suggestions": suggestions[:2],
         "subtotal": subtotal,

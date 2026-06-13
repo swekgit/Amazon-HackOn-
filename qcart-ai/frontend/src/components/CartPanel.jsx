@@ -22,7 +22,7 @@ export default function CartPanel({ cart, subtotal, suggestions, theme, onQty, o
 
   return (
     <div>
-      <div className="space-y-2.5">
+      <div className="space-y-3">
         {cart.map((item, i) => (
           <CartItem key={item.id} item={item} index={i} onQty={onQty} onRemove={onRemove} />
         ))}
@@ -32,21 +32,21 @@ export default function CartPanel({ cart, subtotal, suggestions, theme, onQty, o
         <div className="mt-3 flex flex-wrap gap-2">
           {suggestions.map((s) => (
             <button key={s.id} onClick={() => onAdd(s)}
-              className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-sm text-ink/70 ring-1 ring-black/10 transition hover:ring-smart">
+              className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full bg-white px-3.5 py-2 text-sm text-ink/70 ring-1 ring-black/10 transition hover:ring-smart active:scale-[0.98]">
               <Plus size={13} /> {s.name} · {formatINR(s.price)}
             </button>
           ))}
         </div>
       )}
 
-      <div className="mt-5 rounded-2xl bg-ink p-5 text-white">
+      <div className="mt-6 rounded-3xl bg-ink p-5 text-white shadow-lg">
         <div className="flex items-end justify-between">
           <span className="text-sm text-white/60">Subtotal</span>
           <span className="font-display text-2xl font-semibold">{formatINR(subtotal)}</span>
         </div>
         <button
           onClick={() => setPlaced(true)}
-          className={`mt-4 flex w-full items-center justify-center gap-2 rounded-xl py-3.5 font-display font-semibold text-white transition focus:outline-none focus-visible:ring-2 ${theme.btn} ${theme.ring}`}
+          className={`mt-4 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl py-3.5 font-display font-semibold text-white transition focus:outline-none focus-visible:ring-2 ${theme.btn} ${theme.ring}`}
         >
           <Zap size={18} /> Place order · 10 min delivery
         </button>
