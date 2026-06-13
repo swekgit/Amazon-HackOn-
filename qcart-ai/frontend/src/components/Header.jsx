@@ -1,11 +1,13 @@
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { MapPin, Search, ShoppingCart, User, Zap } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { MapPin, Search, ShoppingCart, User, Zap, ChevronDown } from "lucide-react";
 import { useApp } from "../state/AppContext.jsx";
 
 export default function Header() {
-  const { cart, setCartOpen, theme } = useApp();
+  const { cart, setCartOpen, theme, city, cities, setCity } = useApp();
   const [scrolled, setScrolled] = useState(false);
+  const [cityOpen, setCityOpen] = useState(false);
+  const cityRef = useRef(null);
   const itemCount = cart.reduce((s, i) => s + i.quantity, 0);
 
   useEffect(() => {
@@ -13,6 +15,16 @@ export default function Header() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!cityOpen) return;
+    const onClickOutside = (e) => {
+      if (cityRef.current && !cityRef.current.contains(e.target)) setCityOpen(false);
+    };
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [cityOpen]);
 
   return (
     <motion.header
@@ -37,13 +49,48 @@ export default function Header() {
             </div>
           </div>
 
-          {/* Delivery Location — hidden on mobile */}
-          <div className="hidden md:flex items-center gap-1.5 text-sm">
-            <MapPin size={14} className="text-smart" />
-            <div className="leading-tight">
-              <p className="text-[10px] text-ink/50">Deliver to</p>
-              <p className="font-medium text-sm text-ink">Bangalore 560001</p>
-            </div>
+          {/* Delivery Location — dynamic dropdown, hidden on mobile */}
+          <div className="hidden md:block relative" ref={cityRef}>
+            <button
+              onClick={() => setCityOpen((v) => !v)}
+              className="flex items-center gap-1.5 text-sm hover:bg-white/40 rounded-lg px-2 py-1.5 transition-colors"
+            >
+              <MapPin size={14} className="text-smart shrink-0" />
+              <div className="leading-tight text-left">
+                <p className="text-[10px] text-ink/50">Deliver to</p>
+                <p className="font-medium text-sm text-ink flex items-center gap-1">
+                  {city}
+                  <ChevronDown size={12} className={`text-ink/40 transition-transform ${cityOpen ? "rotate-180" : ""}`} />
+                </p>
+              </div>
+            </button>
+
+            <AnimatePresence>
+              {cityOpen && cities.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute top-full left-0 mt-1 w-48 bg-white rounded-xl shadow-xl ring-1 ring-border overflow-hidden z-50"
+                >
+                  {cities.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => { setCity(c); setCityOpen(false); }}
+                      className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center gap-2 ${
+                        c === city
+                          ? "bg-smart-soft text-smart-dark font-semibold"
+                          : "text-ink hover:bg-canvas"
+                      }`}
+                    >
+                      <MapPin size={12} className={c === city ? "text-smart" : "text-ink/30"} />
+                      {c}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Mini search — hidden on mobile */}
