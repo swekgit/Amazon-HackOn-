@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useMemo, useCallback } from "react";
-import { sendTurn } from "../api/client.js";
+import { createContext, useContext, useState, useMemo, useCallback, useEffect } from "react";
+import { sendTurn, fetchCities, fetchTrending } from "../api/client.js";
 import { useTheme } from "./useTheme.js";
 import { ORDER_HISTORY } from "../data/orders.js";
 
@@ -20,6 +20,12 @@ export function AppProvider({ children }) {
   const [error, setError] = useState("");
   const [cartOpen, setCartOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+
+  // ── City & Trending state ──────────────────────────────────────────────────
+  const [city, setCityRaw] = useState("Bangalore");
+  const [cities, setCities] = useState([]);
+  const [trendingProducts, setTrendingProducts] = useState([]);
+  const [trendingLoading, setTrendingLoading] = useState(false);
 
   const themeState = useTheme();
 
@@ -69,8 +75,8 @@ export function AppProvider({ children }) {
         qty <= 0
           ? c.filter((i) => i.id !== id)
           : c.map((i) =>
-              i.id === id ? { ...i, quantity: qty, line_total: i.price * qty } : i
-            )
+            i.id === id ? { ...i, quantity: qty, line_total: i.price * qty } : i
+          )
       ),
     []
   );
@@ -90,7 +96,38 @@ export function AppProvider({ children }) {
     []
   );
 
-  const clearCart = useCallback(() => setCart([]), []);
+  const clearCart = useCallback(() => {
+    setCart([]);
+    setMeta((prev) => ({ ...prev, suggestions: [], gapFillers: [] }));
+  }, []);
+
+  // ── City selection & trending fetch ─────────────────────────────────────────
+
+  const loadTrending = useCallback(async (targetCity) => {
+    setTrendingLoading(true);
+    try {
+      const data = await fetchTrending(targetCity);
+      setTrendingProducts(data.products || []);
+    } catch {
+      setTrendingProducts([]);
+    } finally {
+      setTrendingLoading(false);
+    }
+  }, []);
+
+  const setCity = useCallback((newCity) => {
+    setCityRaw(newCity);
+    loadTrending(newCity);
+  }, [loadTrending]);
+
+  // Load cities list + initial trending on mount
+  useEffect(() => {
+    fetchCities()
+      .then((data) => setCities(data.cities || []))
+      .catch(() => setCities(["Bangalore"]));
+    loadTrending(city);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -122,11 +159,18 @@ export function AppProvider({ children }) {
       gapAmount,
       // Data
       orderHistory: ORDER_HISTORY,
+      // City & Trending
+      city,
+      cities,
+      setCity,
+      trendingProducts,
+      trendingLoading,
     }),
     [
       cart, addProduct, removeItem, setQty, subtotal, clearCart,
       messages, send, loading, error,
       themeState, cartOpen, chatOpen, meta, gapAmount,
+      city, cities, setCity, trendingProducts, trendingLoading,
     ]
   );
 

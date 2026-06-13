@@ -10,6 +10,7 @@ Flow per turn:
 """
 
 import json
+import logging
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
@@ -19,9 +20,14 @@ from pydantic import BaseModel
 import brain
 import cache
 import catalog
+import db
 import gap
 
 load_dotenv()
+
+log = logging.getLogger(__name__)
+
+DEFAULT_CITY = "Bangalore"
 
 app = FastAPI(title="QCart AI")
 app.add_middleware(
@@ -37,9 +43,63 @@ class CartTurn(BaseModel):
     cart: list = []               # current cart lines (empty on first turn)
 
 
+# ── Lightweight reads ──────────────────────────────────────────────────────────
+
+
 @app.get("/api/health")
 def health():
     return {"ok": True, "catalog_size": len(catalog.CATALOG), "model": brain.MODEL}
+
+
+@app.get("/api/cities")
+def list_cities():
+    """Return all cities that have trending data in MongoDB."""
+    try:
+        cities = db.trending.distinct("city")
+        cities.sort()
+        log.info("Loaded %d cities from db.trending", len(cities))
+        return {"cities": cities}
+    except Exception as exc:
+        log.error("Failed to fetch cities: %s", exc)
+        raise HTTPException(502, "Could not load city list.") from exc
+
+
+@app.get("/api/trending")
+def trending_products(city: str = DEFAULT_CITY):
+    """Return trending products for a city, resolved via catalog."""
+    log.info("Trending request for city=%s", city)
+
+    try:
+        doc = db.trending.find_one({"city": {"$regex": f"^{city}$", "$options": "i"}})
+    except Exception as exc:
+        log.error("MongoDB query failed: %s", exc)
+        raise HTTPException(502, "Database error.") from exc
+
+    # Fallback to default city if requested city not found
+    if not doc and city.lower() != DEFAULT_CITY.lower():
+        log.warning("City '%s' not found, falling back to %s", city, DEFAULT_CITY)
+        doc = db.trending.find_one({"city": {"$regex": f"^{DEFAULT_CITY}$", "$options": "i"}})
+
+    if not doc:
+        raise HTTPException(404, f"No trending products found for city: {city}")
+
+    products = []
+    for pid in doc.get("product_ids", []):
+        p = catalog.get(pid)
+        if p:
+            products.append({
+                "id": p["id"],
+                "name": p["name"],
+                "price": p["price"],
+                "tags": p["tags"],
+            })
+
+    resolved_city = doc.get("city", city)
+    log.info("Returning %d trending products for %s", len(products), resolved_city)
+    return {"city": resolved_city, "products": products}
+
+
+# ── Conversational cart ────────────────────────────────────────────────────────
 
 
 @app.post("/api/cart")
