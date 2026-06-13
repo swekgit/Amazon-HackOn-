@@ -1,7 +1,7 @@
 import { mockTurn } from "./mock.js";
 
 // Flip to false once the backend is ready. Lets frontend work fully standalone.
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 export async function sendTurn({ message, cart }) {
   if (!USE_MOCK) return mockTurn({ message, cart });
