@@ -167,3 +167,71 @@ def enrich(product_id: str, quantity: int, reason: str = "") -> dict | None:
         "reason": reason,
         "line_total": p["price"] * qty,
     }
+
+def find_alternatives(product_id: str, cart_ids: set[str]) -> dict:
+    """
+    Returns:
+    {
+        "cheaper": {id,name,price} | None,
+        "premium": {id,name,price} | None
+    }
+    """
+
+    current = BY_ID.get(product_id)
+
+    if not current:
+        return {
+            "cheaper": None,
+            "premium": None,
+        }
+
+    category = current["category"]
+    price = current["price"]
+
+    candidates = [
+        p
+        for p in CATALOG
+        if p["category"] == category
+        and p["id"] != product_id
+        and p["id"] not in cart_ids
+    ]
+
+    cheaper_candidates = [
+        p for p in candidates
+        if p["price"] < price
+    ]
+
+    premium_candidates = [
+        p for p in candidates
+        if p["price"] > price
+    ]
+
+    cheaper = None
+    premium = None
+
+    if cheaper_candidates:
+        best = max(
+            cheaper_candidates,
+            key=lambda p: p["price"]
+        )
+        cheaper = {
+            "id": best["id"],
+            "name": best["name"],
+            "price": best["price"],
+        }
+
+    if premium_candidates:
+        best = min(
+            premium_candidates,
+            key=lambda p: p["price"]
+        )
+        premium = {
+            "id": best["id"],
+            "name": best["name"],
+            "price": best["price"],
+        }
+
+    return {
+        "cheaper": cheaper,
+        "premium": premium,
+    }
