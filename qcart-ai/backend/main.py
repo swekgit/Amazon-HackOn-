@@ -101,56 +101,56 @@ def trending_products(city: str = DEFAULT_CITY):
     log.info("Returning %d trending products for %s", len(products), resolved_city)
     return {"city": resolved_city, "products": products}
 
-def build_alternatives(product):
+# def build_alternatives(product):
 
-    category = product.get("category")
+#     category = product.get("category")
 
-    cheaper = None
-    premium = None
+#     cheaper = None
+#     premium = None
 
-    for candidate in catalog.CATALOG:
+#     for candidate in catalog.CATALOG:
 
-        if candidate["id"] == product["id"]:
-            continue
+#         if candidate["id"] == product["id"]:
+#             continue
 
-        if candidate.get("category") != category:
-            continue
+#         if candidate.get("category") != category:
+#             continue
 
-        current_tags = set(product.get("tags", []))
-        candidate_tags = set(candidate.get("tags", []))
+#         current_tags = set(product.get("tags", []))
+#         candidate_tags = set(candidate.get("tags", []))
 
-        if not current_tags.intersection(candidate_tags):
-            continue
+#         if not current_tags.intersection(candidate_tags):
+#             continue
 
-        if current_tags != candidate_tags:
-            continue
+#         if current_tags != candidate_tags:
+#             continue
 
-        if candidate["price"] < product["price"]:
-            if (
-                cheaper is None
-                or candidate["price"] > cheaper["price"]
-            ):
-                cheaper = {
-                    "id": candidate["id"],
-                    "name": candidate["name"],
-                    "price": candidate["price"]
-                }
+#         if candidate["price"] < product["price"]:
+#             if (
+#                 cheaper is None
+#                 or candidate["price"] > cheaper["price"]
+#             ):
+#                 cheaper = {
+#                     "id": candidate["id"],
+#                     "name": candidate["name"],
+#                     "price": candidate["price"]
+#                 }
 
-        if candidate["price"] > product["price"]:
-            if (
-                premium is None
-                or candidate["price"] < premium["price"]
-            ):
-                premium = {
-                    "id": candidate["id"],
-                    "name": candidate["name"],
-                    "price": candidate["price"]
-                }
+#         if candidate["price"] > product["price"]:
+#             if (
+#                 premium is None
+#                 or candidate["price"] < premium["price"]
+#             ):
+#                 premium = {
+#                     "id": candidate["id"],
+#                     "name": candidate["name"],
+#                     "price": candidate["price"]
+#                 }
 
-    return {
-        "cheaper": cheaper,
-        "premium": premium
-    }
+#     return {
+#         "cheaper": cheaper,
+#         "premium": premium
+#     }
 
 
 # ── Conversational cart ────────────────────────────────────────────────────────
@@ -204,6 +204,12 @@ def cart_turn(turn: CartTurn):
     # 3) validate + enrich cart
     cart_lines = []
 
+    cart_product_ids = {
+    item.get("product_id")
+    for item in result["cart"]
+    if item.get("product_id")
+}
+
     for picked in result["cart"]:
         line = catalog.enrich(
             picked.get("product_id"),
@@ -214,15 +220,10 @@ def cart_turn(turn: CartTurn):
         if not line:
             continue
 
-        product = catalog.get(line["id"])
-
-        if product:
-            line["alternatives"] = build_alternatives(product)
-        else:
-            line["alternatives"] = {
-                "cheaper": None,
-                "premium": None,
-            }
+        line["alternatives"] = catalog.find_alternatives(
+        line["id"],
+        cart_product_ids,
+)
 
         cart_lines.append(line)
 
