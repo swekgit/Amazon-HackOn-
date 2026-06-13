@@ -55,6 +55,7 @@ export function AppProvider({ children }) {
           threshold: res.free_delivery_threshold,
           gapFillers: res.gap_fillers || [],
           suggestions: res.suggestions || [],
+          readiness: res.readiness || null,
           buildTime,
         });
         setMessages((m) => [...m, { role: "assistant", text: res.reply }]);
@@ -85,6 +86,20 @@ export function AppProvider({ children }) {
     (id) => setCart((c) => c.filter((i) => i.id !== id)),
     []
   );
+const swapItem = useCallback((oldId, newProduct) => {
+  setCart((current) =>
+    current.map((item) => {
+      if (item.id !== oldId) return item;
+
+      return {
+        ...newProduct,
+        quantity: item.quantity,
+        reason: newProduct.reason || item.reason || "",
+        line_total: newProduct.price * item.quantity,
+      };
+    })
+  );
+}, []);
 
   const addProduct = useCallback(
     (p) =>
@@ -149,6 +164,7 @@ export function AppProvider({ children }) {
       addProduct,
       removeItem,
       setQty,
+      swapItem,
       subtotal,
       clearCart,
       hasCart: cart.length > 0,
@@ -180,7 +196,7 @@ export function AppProvider({ children }) {
       trendingLoading,
     }),
     [
-      cart, addProduct, removeItem, setQty, subtotal, clearCart,
+      cart, addProduct, removeItem, setQty,swapItem, subtotal, clearCart,
       messages, send, loading, error,
       themeState, cartOpen, chatOpen, meta, gapAmount,
       city, cities, setCity, trendingProducts, trendingLoading,
