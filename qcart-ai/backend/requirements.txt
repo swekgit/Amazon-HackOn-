@@ -4,6 +4,7 @@ anyio==4.13.0
 certifi==2026.5.20
 click==8.4.1
 distro==1.9.0
+dnspython==2.7.0
 fastapi==0.115.6
 h11==0.16.0
 httpcore==1.0.9
@@ -16,6 +17,7 @@ openai==2.41.1
 packaging==26.2
 pydantic==2.10.4
 pydantic_core==2.27.2
+pymongo==4.12.1
 pytest==8.3.5
 python-dotenv==1.0.1
 PyYAML==6.0.3
