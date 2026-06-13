@@ -1,0 +1,13 @@
+{
+  "preferences": {
+    "diet": "vegetarian",
+    "household_size": 3,
+    "notes": "Prefers value packs. Coffee drinker. Has a toddler at home."
+  },
+  "recent_orders": [
+    { "date": "2026-06-06", "items": ["p020", "p021", "p022", "p015", "p030", "p031"] },
+    { "date": "2026-05-30", "items": ["p020", "p021", "p015", "p029", "p033"] },
+    { "date": "2026-05-23", "items": ["p020", "p021", "p015", "p016", "p053"] }
+  ],
+  "frequently_bought": ["p020", "p021", "p015", "p022"]
+}
