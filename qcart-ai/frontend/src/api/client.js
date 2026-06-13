@@ -4,7 +4,7 @@ import { mockTurn } from "./mock.js";
 const USE_MOCK = true;
 
 export async function sendTurn({ message, cart }) {
-  if (USE_MOCK) return mockTurn({ message, cart });
+  if (!USE_MOCK) return mockTurn({ message, cart });
 
   const res = await fetch("/api/cart", {
     method: "POST",

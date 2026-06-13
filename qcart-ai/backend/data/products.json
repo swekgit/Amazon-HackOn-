@@ -58,5 +58,27 @@
   { "id": "p062", "name": "Disposable Cups (Pack of 50)", "category": "party", "price": 60, "tags": ["party", "disposable"] },
   { "id": "p063", "name": "Birthday Candles (Pack of 10)", "category": "party", "price": 40, "tags": ["party", "birthday"] },
   { "id": "p064", "name": "Chocolate Cake (500g)", "category": "party", "price": 399, "tags": ["party", "birthday", "dessert", "sweet"] },
-  { "id": "p065", "name": "Garlic Bread (Frozen, 2 packs)", "category": "party", "price": 150, "tags": ["party", "movie", "frozen", "snack"] }
+  { "id": "p065", "name": "Garlic Bread (Frozen, 2 packs)", "category": "party", "price": 150, "tags": ["party", "movie", "frozen", "snack"] },
+
+{ "id": "p066", "name": "Premium Arabica Coffee (200g)", "category": "beverages", "price": 499, "tags": ["coffee","premium","breakfast"] },
+
+{ "id": "p067", "name": "Cold Pressed Orange Juice (1L)", "category": "beverages", "price": 249, "tags": ["juice","premium","drink"] },
+
+{ "id": "p068", "name": "Gourmet Kettle Chips (200g)", "category": "snacks", "price": 179, "tags": ["chips","premium","party","movie"] },
+
+{ "id": "p069", "name": "Belgian Chocolate Ice Cream Tub (750ml)", "category": "snacks", "price": 349, "tags": ["dessert","premium","movie","party","dairy"] },
+
+{ "id": "p070", "name": "Butter Almond Cookies (300g)", "category": "snacks", "price": 199, "tags": ["cookies","premium","snack"] },
+
+{ "id": "p071", "name": "Sparkling Fruit Beverage (750ml)", "category": "beverages", "price": 149, "tags": ["premium","party","drink"] },
+
+{ "id": "p072", "name": "Milk Chocolate Bar (45g)", "category": "snacks", "price": 40, "tags": ["chocolate","cheap","sweet"] },
+
+{ "id": "p073", "name": "Coffee Sachet Pack", "category": "beverages", "price": 99, "tags": ["coffee","cheap"] },
+
+{ "id": "p074", "name": "Organic A2 Ghee (500ml)", "category": "staples", "price": 699, "tags": ["weekly", "staple", "dairy", "premium", "breakfast"] },
+
+{ "id": "p075", "name": "Imported Fuji Apples (1kg)", "category": "produce", "price": 450, "tags": ["weekly", "fruit", "premium", "healthy"] },
+
+{ "id": "p076", "name": "Loose Poha (500g)", "category": "staples", "price": 35, "tags": ["weekly", "staple", "cheap", "breakfast"] }
 ]
