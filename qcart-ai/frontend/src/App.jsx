@@ -13,6 +13,10 @@ import ConversationalPanel from "./components/ConversationalPanel.jsx";
 import CopilotFAB from "./components/CopilotFAB.jsx";
 import RainEffect from "./components/RainEffect.jsx";
 import { useApp } from "./state/AppContext.jsx";
+import { useState } from "react";
+import ForYou from "./components/ForYou";
+
+
 
 const sectionVariants = {
   hidden: { opacity: 0, y: 30 },
@@ -35,6 +39,7 @@ const staggerContainer = {
 };
 
 export default function App() {
+  const [activeTab, setActiveTab] = useState("foryou");
   const { cartOpen, chatOpen } = useApp();
 
   return (
@@ -50,6 +55,38 @@ export default function App() {
         {/* Hero search — the star of the show */}
         <HeroSearch />
 
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+  <div className="flex rounded-2xl bg-white p-1 ring-1 ring-black/5 shadow-sm">
+    <button
+      onClick={() => setActiveTab("foryou")}
+      className={`flex-1 rounded-xl px-4 py-3 text-sm font-medium transition ${
+        activeTab === "foryou"
+          ? "bg-smart text-white"
+          : "text-gray-600"
+      }`}
+    >
+      For You
+    </button>
+
+    <button
+      onClick={() => setActiveTab("home")}
+      className={`flex-1 rounded-xl px-4 py-3 text-sm font-medium transition ${
+        activeTab === "home"
+          ? "bg-smart text-white"
+          : "text-gray-600"
+      }`}
+    >
+      Cart Assistant
+    </button>
+  </div>
+</div>
+{activeTab === "foryou" ? (
+  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <ForYou />
+  </div>
+) : (
+  <>
+
         {/* Mission Cards — quick moment selection */}
         <motion.section
           variants={sectionVariants}
@@ -59,6 +96,7 @@ export default function App() {
           className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6"
         >
           <MissionCards />
+
         </motion.section>
 
         {/* Buy Again — order history */}
@@ -104,6 +142,8 @@ export default function App() {
         >
           <TrendingMoments />
         </motion.section>
+          </>
+)}
       </main>
 
       {/* Footer */}
