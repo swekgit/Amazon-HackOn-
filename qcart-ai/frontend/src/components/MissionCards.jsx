@@ -3,6 +3,17 @@ import { Sparkles } from "lucide-react";
 import { MISSIONS } from "../data/missions.js";
 import { useApp } from "../state/AppContext.jsx";
 
+const MISSION_VISUALS = {
+  "Movie Night": { iconBg: "bg-purple-50", borderAccent: "border-purple-200" },
+  "Party for 6": { iconBg: "bg-pink-50", borderAccent: "border-pink-200" },
+  "Rainy Day": { iconBg: "bg-cyan-50", borderAccent: "border-cyan-200" },
+  "Guests at Home": { iconBg: "bg-amber-50", borderAccent: "border-amber-200" },
+  "Study Session": { iconBg: "bg-blue-50", borderAccent: "border-blue-200" },
+  "Fever Care": { iconBg: "bg-red-50", borderAccent: "border-red-200" },
+  "Summer Essentials": { iconBg: "bg-orange-50", borderAccent: "border-orange-200" },
+  "Late Night Cravings": { iconBg: "bg-indigo-50", borderAccent: "border-indigo-200" },
+};
+
 const cardVariants = {
   hidden: { opacity: 0, y: 20, scale: 0.95 },
   visible: (i) => ({
@@ -16,48 +27,52 @@ export default function MissionCards() {
 
   return (
     <div>
-      <div className="flex items-center gap-2 mb-6">
-        <Sparkles size={20} className="text-smart" />
-        <h2 className="font-display text-xl sm:text-2xl font-bold">What's your moment?</h2>
+      <div className="flex items-center gap-2 mb-4">
+        <Sparkles size={18} className="text-smart" />
+        <h2 className="font-display text-lg sm:text-xl font-bold text-ink">What's your moment?</h2>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-        {MISSIONS.map((mi, i) => (
-          <motion.button
-            key={mi.label}
-            custom={i}
-            variants={cardVariants}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            whileHover={{ y: -4, scale: 1.02 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => send(mi.intent)}
-            disabled={loading}
-            className={`relative overflow-hidden rounded-2xl p-5 text-left text-white transition-shadow disabled:opacity-50
-              bg-gradient-to-br ${mi.gradient}
-              hover:shadow-xl hover:shadow-black/15
-              ${mi.urgent ? "ring-2 ring-rose-300" : ""}
-            `}
-          >
-            {/* Decorative orb */}
-            <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-white/10 blur-xl" />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-3">
+        {MISSIONS.map((mi, i) => {
+          const visual = MISSION_VISUALS[mi.label] || { iconBg: "bg-gray-50", borderAccent: "border-gray-200" };
+          return (
+            <motion.button
+              key={mi.label}
+              custom={i}
+              variants={cardVariants}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              whileHover={{ y: -4, scale: 1.02 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => send(mi.intent)}
+              disabled={loading}
+              className={`relative overflow-hidden rounded-xl bg-white p-4 text-left transition-shadow disabled:opacity-50
+                border ${visual.borderAccent}
+                hover:shadow-lg hover:shadow-black/8
+                ${mi.urgent ? "border-l-4 border-l-rose-400" : ""}
+              `}
+            >
+              {/* Emoji icon with tinted background */}
+              <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl ${visual.iconBg} mb-2`}>
+                <span className="text-2xl">{mi.emoji}</span>
+              </div>
 
-            <span className="text-3xl sm:text-4xl block mb-2">{mi.emoji}</span>
-            <p className="font-display font-semibold text-sm sm:text-base leading-tight">
-              {mi.label}
-            </p>
-            <p className="mt-1 text-xs text-white/70 leading-snug">
-              {mi.description}
-            </p>
+              <p className="font-display font-semibold text-sm leading-tight text-ink">
+                {mi.label}
+              </p>
+              <p className="mt-0.5 text-xs text-ink/50 leading-snug">
+                {mi.description}
+              </p>
 
-            {mi.urgent && (
-              <span className="mt-2 inline-block rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider">
-                Urgent
-              </span>
-            )}
-          </motion.button>
-        ))}
+              {mi.urgent && (
+                <span className="mt-2 inline-block rounded-full bg-rose-50 text-rose-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider">
+                  Urgent
+                </span>
+              )}
+            </motion.button>
+          );
+        })}
       </div>
     </div>
   );

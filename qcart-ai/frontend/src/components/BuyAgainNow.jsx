@@ -19,16 +19,16 @@ export default function BuyAgainNow() {
 
   return (
     <div>
-      <div className="flex items-center gap-2 mb-6">
-        <RotateCcw size={20} className="text-smart" />
+      <div className="flex items-center gap-2 mb-4">
+        <RotateCcw size={18} className="text-smart" />
         <div>
-          <h2 className="font-display text-xl sm:text-2xl font-bold">Buy Again</h2>
-          <p className="text-sm text-ink/50">Your frequently purchased items</p>
+          <h2 className="font-display text-lg sm:text-xl font-bold text-ink">Buy Again</h2>
+          <p className="text-xs text-ink/50">Your frequently purchased items</p>
         </div>
       </div>
 
       {/* Product scroll */}
-      <div className="flex gap-3 overflow-x-auto no-scrollbar pb-4 snap-x-mandatory">
+      <div className="flex gap-3 overflow-x-auto no-scrollbar pb-3 snap-x-mandatory">
         {items.map((product, i) => {
           const lastDate = getLastPurchaseDate(product.id);
           const freq = getPurchaseFrequency(product.id);
@@ -40,11 +40,13 @@ export default function BuyAgainNow() {
               transition={{ delay: i * 0.08, duration: 0.4 }}
               viewport={{ once: true }}
               whileHover={{ y: -3 }}
-              className="shrink-0 w-44 rounded-2xl glass p-4 ring-1 ring-black/5 cursor-default"
+              className="shrink-0 w-44 rounded-xl bg-white p-4 ring-1 ring-border cursor-default hover:shadow-md transition-shadow"
             >
-              <div className="text-3xl mb-2">{getCategoryEmoji(product.category)}</div>
-              <p className="font-medium text-sm leading-snug line-clamp-2">{product.name}</p>
-              <p className="mt-1 font-display font-semibold text-smart">{formatINR(product.price)}</p>
+              <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-canvas mb-2">
+                <span className="text-2xl">{getCategoryEmoji(product.category)}</span>
+              </div>
+              <p className="font-medium text-sm leading-snug line-clamp-2 text-ink">{product.name}</p>
+              <p className="mt-1 font-display font-bold text-ink">{formatINR(product.price)}</p>
               <div className="mt-2 flex flex-col gap-1">
                 {lastDate && (
                   <span className="text-[11px] text-ink/40">{formatTimeAgo(lastDate)}</span>
@@ -67,7 +69,7 @@ export default function BuyAgainNow() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95 }}
             onClick={handleBuildCart}
-            className="mt-4 flex items-center gap-2 rounded-xl bg-gradient-to-r from-smart to-smart-dark px-6 py-3.5 font-display font-semibold text-white shadow-lg shadow-smart/20 hover:shadow-xl hover:shadow-smart/30 transition-all"
+            className="mt-3 flex items-center gap-2 rounded-full bg-amazonYellow px-6 py-3 font-display font-bold text-ink shadow-md hover:shadow-lg hover:bg-yellow-400 transition-all"
           >
             <ShoppingCart size={18} />
             Build My Repeat Cart
@@ -78,7 +80,7 @@ export default function BuyAgainNow() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             onClick={() => setCartOpen(true)}
-            className="mt-4 flex items-center gap-2 rounded-xl bg-gradient-to-r from-fresh to-emerald-600 px-6 py-3.5 font-display font-semibold text-white shadow-lg shadow-fresh/20 hover:shadow-xl transition-all"
+            className="mt-3 flex items-center gap-2 rounded-full bg-fresh px-6 py-3 font-display font-bold text-white shadow-md hover:shadow-lg transition-all"
           >
             <Check size={18} />
             Cart Ready — Checkout Now

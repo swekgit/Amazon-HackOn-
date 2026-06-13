@@ -16,19 +16,19 @@ export default function Header() {
 
   return (
     <motion.header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 bg-headerBg ${
         scrolled
-          ? "glass shadow-lg shadow-black/5 border-b border-white/20"
-          : "bg-transparent"
+          ? "shadow-md border-b border-border"
+          : "border-b border-transparent"
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-14">
           {/* Logo */}
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5">
               <span className="text-2xl">⚡</span>
-              <span className="font-display text-xl font-bold tracking-tight">
+              <span className="font-display text-xl font-bold tracking-tight text-ink">
                 QCart
               </span>
               <span className="rounded-md bg-smart px-1.5 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">
@@ -42,7 +42,7 @@ export default function Header() {
             <MapPin size={14} className="text-smart" />
             <div className="leading-tight">
               <p className="text-[10px] text-ink/50">Deliver to</p>
-              <p className="font-medium text-sm">Bangalore 560001</p>
+              <p className="font-medium text-sm text-ink">Bangalore 560001</p>
             </div>
           </div>
 
@@ -52,7 +52,7 @@ export default function Header() {
               const hero = document.getElementById("hero-search");
               hero?.scrollIntoView({ behavior: "smooth" });
             }}
-            className="hidden lg:flex items-center gap-2 px-4 py-2 rounded-xl bg-white/60 ring-1 ring-black/5 text-sm text-ink/50 hover:ring-smart/40 transition-all max-w-xs flex-1 mx-8"
+            className="hidden lg:flex items-center gap-2 px-4 py-2 rounded-full bg-white ring-1 ring-border text-sm text-ink/50 hover:ring-smart/50 transition-all max-w-xs flex-1 mx-8"
           >
             <Search size={14} />
             <span>Search your moment…</span>
@@ -61,7 +61,7 @@ export default function Header() {
           {/* Right actions */}
           <div className="flex items-center gap-3">
             {/* Delivery badge */}
-            <div className="hidden sm:flex items-center gap-1 text-xs font-medium text-smart">
+            <div className="hidden sm:flex items-center gap-1 rounded-full bg-amazonYellow px-2.5 py-1 text-xs font-bold text-ink">
               <Zap size={12} />
               <span>10 min</span>
             </div>
@@ -72,7 +72,7 @@ export default function Header() {
               className="relative p-2.5 rounded-xl hover:bg-white/60 transition-colors"
               aria-label="Open cart"
             >
-              <ShoppingCart size={20} />
+              <ShoppingCart size={20} className="text-ink" />
               {itemCount > 0 && (
                 <motion.span
                   initial={{ scale: 0 }}
@@ -86,7 +86,7 @@ export default function Header() {
 
             {/* Profile */}
             <button className="p-2.5 rounded-xl hover:bg-white/60 transition-colors" aria-label="Profile">
-              <User size={20} />
+              <User size={20} className="text-ink" />
             </button>
           </div>
         </div>
