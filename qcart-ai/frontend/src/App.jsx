@@ -7,6 +7,7 @@ import BuyAgainNow from "./components/BuyAgainNow.jsx";
 import OfferBanners from "./components/OfferBanners.jsx";
 import AIRecommendations from "./components/AIRecommendations.jsx";
 import TrendingMoments from "./components/TrendingMoments.jsx";
+import TrendingInCity from "./components/TrendingInCity.jsx";
 import Footer from "./components/Footer.jsx";
 import CartDrawer from "./components/CartDrawer.jsx";
 import ConversationalPanel from "./components/ConversationalPanel.jsx";
@@ -103,6 +104,17 @@ export default function App() {
           className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6"
         >
           <TrendingMoments />
+        </motion.section>
+
+        {/* Trending in your City — API-driven */}
+        <motion.section
+          variants={sectionVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-50px" }}
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6"
+        >
+          <TrendingInCity />
         </motion.section>
       </main>
 
