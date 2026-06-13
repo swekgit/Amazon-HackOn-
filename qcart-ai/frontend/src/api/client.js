@@ -4,7 +4,7 @@ import { mockTurn } from "./mock.js";
 const USE_MOCK = false;
 
 export async function sendTurn({ message, cart }) {
-  if (!USE_MOCK) return mockTurn({ message, cart });
+  if (USE_MOCK) return mockTurn({ message, cart });
 
   const res = await fetch("/api/cart", {
     method: "POST",
@@ -56,7 +56,7 @@ const MOCK_TRENDING = {
 
 
 export async function fetchCities() {
-  if (!USE_MOCK) return { cities: MOCK_CITIES };
+  if (USE_MOCK) return { cities: MOCK_CITIES };
 
   const res = await fetch("/api/cities");
   if (!res.ok) {
@@ -68,7 +68,7 @@ export async function fetchCities() {
 
 
 export async function fetchTrending(city = "Bangalore") {
-  if (!USE_MOCK) {
+  if (USE_MOCK) {
     const products = MOCK_TRENDING[city] || MOCK_TRENDING["Bangalore"] || [];
     return { city, products };
   }

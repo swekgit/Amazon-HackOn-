@@ -103,22 +103,35 @@ export function AppProvider({ children }) {
 
   // ── City selection & trending fetch ─────────────────────────────────────────
 
-  const loadTrending = useCallback(async (targetCity) => {
-    setTrendingLoading(true);
-    try {
-      const data = await fetchTrending(targetCity);
-      setTrendingProducts(data.products || []);
-    } catch {
-      setTrendingProducts([]);
-    } finally {
-      setTrendingLoading(false);
-    }
-  }, []);
+ const loadTrending = useCallback(async (targetCity) => {
+  console.log("loadTrending fired:", targetCity);
+
+  setTrendingLoading(true);
+
+  try {
+    const data = await fetchTrending(targetCity);
+
+    console.log("fetchTrending returned:", data);
+
+    setTrendingProducts(data.products || []);
+  } catch (e) {
+    console.error("TRENDING ERROR:", e);
+
+    setTrendingProducts([]);
+  } finally {
+    setTrendingLoading(false);
+  }
+}, []);
 
   const setCity = useCallback((newCity) => {
-    setCityRaw(newCity);
-    loadTrending(newCity);
-  }, [loadTrending]);
+  console.log("CITY CLICKED:", newCity);
+
+  setCityRaw(newCity);
+
+  console.log("CALLING loadTrending:", newCity);
+
+  loadTrending(newCity);
+}, [loadTrending]);
 
   // Load cities list + initial trending on mount
   useEffect(() => {
