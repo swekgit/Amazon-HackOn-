@@ -4,35 +4,24 @@ One conversational turn: given the current cart and the user's new message,
 return an updated cart + a short reply + context/urgency classification.
 First turn (empty cart) = build from scratch. Later turns = refine.
 
-Caching: the catalog + the user's history are the same on every request, so we
-mark that block with cache_control. Anthropic then caches that prefix and only
-re-processes the small dynamic part (cart + message) — cheaper and faster across
-a session. (The cached block needs to be reasonably large to take effect; our
-catalog clears that comfortably.)
+Now powered by AWS Bedrock via model_router with multi-model fallback:
+  - Nova Lite: intent classification, scoring, lightweight tasks
+  - Llama 70B / Nova Pro: cart generation, structured JSON
 """
 
 import json
 import os
 import re
 
-from openai import OpenAI
-
-import catalog
-
-MODEL = os.getenv(
-    "MODEL_NAME",
-    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
-)
-
 from dotenv import load_dotenv
 
 load_dotenv()
 
-client = OpenAI(
-    base_url="https://integrate.api.nvidia.com/v1",
-    api_key=os.getenv("NVIDIA_API_KEY"),
-    timeout=45,
-)
+import catalog
+from model_router import invoke_json, invoke, Task, get_model_info
+
+# Expose model info for health endpoint
+MODEL = get_model_info(Task.CART_GENERATION)["model_id"]
 
 INSTRUCTIONS = """You are a quick-commerce cart AI. Respond with ONLY valid JSON.
 
@@ -98,42 +87,13 @@ RESPOND WITH ONLY VALID JSON — no markdown, no explanation. Use this exact sch
 {{"reply": "...", "context": "...", "urgency": "...", "cart": [{{"product_id": "...", "quantity": N, "reason": "..."}}], "suggestions": [{{"product_id": "...", "reason": "..."}}]}}
 """
 
-    resp = client.chat.completions.create(
-        model=MODEL,
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-        temperature=0.2,
-        max_tokens=16384
-    )
+    # Route to Bedrock: cart generation uses Llama/Nova Pro, with fallback
+    messages = [
+        {"role": "user", "content": [{"text": prompt}]}
+    ]
 
-    content = resp.choices[0].message.content
-    if content is None:
-        raise ValueError(
-            f"Model returned empty content. "
-            f"Check your NVIDIA_API_KEY and that model '{MODEL}' is accessible. "
-            f"Finish reason: {resp.choices[0].finish_reason}"
-        )
-
-    raw = content.strip()
-    raw = (
-        raw.removeprefix("```json")
-           .removeprefix("```")
-           .removesuffix("```")
-           .strip()
-    )
-
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        # Fallback: extract first JSON object using regex
-        match = re.search(r"\{.*\}", raw, re.DOTALL)
-        if match:
-            return json.loads(match.group())
-        raise
+    result = invoke_json(Task.CART_GENERATION, messages, temperature=0.2)
+    return result["parsed"]
 
 
 def recommend_for_you(tags, candidate_products):
@@ -150,21 +110,22 @@ def recommend_for_you(tags, candidate_products):
 
     for p in candidate_products:
         if "offer" in p:
-           deals.append(
-    {
-        "product_id": p["id"],
-        "pitch": pitch_for_product(
-            p,
-            tags,
-            p["offer"]["discount_pct"]
-        ),
-    }
-)
+            deals.append(
+                {
+                    "product_id": p["id"],
+                    "pitch": pitch_for_product(
+                        p,
+                        tags,
+                        p["offer"]["discount_pct"]
+                    ),
+                }
+            )
 
     return {
         "recommended": recommended[:5],
         "deals": deals[:3]
     }
+
 
 def personalize_copy(
     tags: list[str],
@@ -204,36 +165,11 @@ Output:
 """
 
     try:
-        resp = client.chat.completions.create(
-            model=MODEL,
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            temperature=0.2,
-            max_tokens=600,
-        )
-
-        content = resp.choices[0].message.content
-
-        if not content:
-            return {
-                "reasons": {},
-                "pitches": {},
-            }
-
-        raw = (
-            content.strip()
-            .removeprefix("```json")
-            .removeprefix("```")
-            .removesuffix("```")
-            .strip()
-        )
-
-        return json.loads(raw)
-
+        messages = [
+            {"role": "user", "content": [{"text": prompt}]}
+        ]
+        result = invoke_json(Task.INTENT_CLASSIFICATION, messages, temperature=0.2, max_tokens=600)
+        return result["parsed"]
     except Exception:
         return {
             "reasons": {},

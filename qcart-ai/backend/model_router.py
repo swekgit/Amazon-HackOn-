@@ -1,17 +1,19 @@
 """Multi-Region Bedrock Model Router.
 
 Routes inference requests to the correct AWS region based on model availability.
-Implements automatic fallback, retry logic, and client caching.
+Uses 3 active models: Nova Pro (primary), Nova Lite (fast), Llama (fallback).
 
 Usage:
-    from model_router import invoke, Task
+    from model_router import invoke, invoke_json, Task
 
-    result = invoke(Task.CART_GENERATION, messages=[...])
+    result = invoke_json(Task.CART_GENERATION, messages=[...])
+    print(result["parsed"])
 """
 
 import json
 import logging
 import os
+import re
 import time
 from enum import Enum
 from typing import Any
@@ -32,72 +34,57 @@ if not logger.handlers:
     ))
     logger.addHandler(handler)
 
-# ─── Configuration ─────────────────────────────────────────────────────────────
-
-DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() == "true"
+# ─── Configuration (only models you have access to) ────────────────────────────
 
 MODEL_CONFIG = {
+    "nova_pro": {
+        "region": os.getenv("NOVA_PRO_REGION", "us-east-1"),
+        "model_id": os.getenv("NOVA_PRO_MODEL_ID", "amazon.nova-pro-v1:0"),
+        "max_tokens": 5000,
+    },
     "nova_lite": {
         "region": os.getenv("NOVA_LITE_REGION", "us-east-1"),
-        "model_id": os.getenv("NOVA_LITE_MODEL_ID", "us.amazon.nova-lite-v1:0"),
+        "model_id": os.getenv("NOVA_LITE_MODEL_ID", "amazon.nova-lite-v1:0"),
+        "max_tokens": 5000,
+    },
+    "llama": {
+        "region": os.getenv("LLAMA_REGION", "us-east-1"),
+        "model_id": os.getenv("LLAMA_MODEL_ID", "meta.llama3-70b-instruct-v1:0"),
         "max_tokens": 4096,
     },
+    # Reserved — not in active routing
     "nova_sonic": {
         "region": os.getenv("NOVA_SONIC_REGION", "us-east-1"),
-        "model_id": os.getenv("NOVA_SONIC_MODEL_ID", "us.amazon.nova-sonic-v1:0"),
+        "model_id": os.getenv("NOVA_SONIC_MODEL_ID", "amazon.nova-sonic-v1:0"),
         "max_tokens": 4096,
-    },
-    "llama_70b": {
-        "region": os.getenv("LLAMA_REGION", "us-east-1"),
-        "model_id": os.getenv("LLAMA_MODEL_ID", "us.meta.llama3-3-70b-instruct-v1:0"),
-        "max_tokens": 4096,
-    },
-    "mistral_large": {
-        "region": os.getenv("MISTRAL_REGION", "us-east-1"),
-        "model_id": os.getenv("MISTRAL_MODEL_ID", "mistral.mistral-large-2407-v1:0"),
-        "max_tokens": 4096,
-    },
-    "gpt_oss_120b": {
-        "region": os.getenv("GPT_OSS_REGION", "us-east-1"),
-        "model_id": os.getenv("GPT_OSS_MODEL_ID", "us.amazon.nova-premier-v1:0"),
-        "max_tokens": 8192,
     },
     "nemotron_super": {
         "region": os.getenv("NEMOTRON_REGION", "us-east-1"),
-        "model_id": os.getenv("NEMOTRON_MODEL_ID", "us.nvidia.nemotron-4-340b-instruct-v1:0"),
+        "model_id": os.getenv("NEMOTRON_MODEL_ID", "nvidia.nemotron-super-v1:0"),
         "max_tokens": 4096,
     },
 }
 
-# ─── Task → Model Routing ─────────────────────────────────────────────────────
+# ─── Tasks ─────────────────────────────────────────────────────────────────────
 
 
 class Task(str, Enum):
-    """Tasks that can be routed to different models."""
-    INTENT_CLASSIFICATION = "intent_classification"
+    """Routable task types."""
     CART_GENERATION = "cart_generation"
+    INTENT_CLASSIFICATION = "intent_classification"
     READINESS_SCORING = "readiness_scoring"
-    GAP_ANALYSIS = "gap_analysis"
-    PREMIUM_DEMO = "premium_demo"
     VOICE = "voice"
     AGENTIC = "agentic"
 
 
-# Routing table: task → primary model, fallback chain
+# Routing: task → [primary, fallback1, fallback2]
 _ROUTING_TABLE: dict[Task, list[str]] = {
-    Task.INTENT_CLASSIFICATION: ["nova_lite", "llama_70b", "mistral_large"],
-    Task.CART_GENERATION: ["llama_70b", "nova_lite", "mistral_large"],
-    Task.READINESS_SCORING: ["nova_lite", "llama_70b", "mistral_large"],
-    Task.GAP_ANALYSIS: ["nova_lite", "llama_70b", "mistral_large"],
-    Task.PREMIUM_DEMO: ["gpt_oss_120b", "llama_70b", "mistral_large"],
+    Task.CART_GENERATION: ["nova_pro", "llama", "nova_lite"],
+    Task.INTENT_CLASSIFICATION: ["nova_lite", "nova_pro", "llama"],
+    Task.READINESS_SCORING: ["nova_lite", "nova_pro", "llama"],
     Task.VOICE: ["nova_sonic"],
-    Task.AGENTIC: ["nemotron_super", "llama_70b"],
+    Task.AGENTIC: ["nemotron_super", "llama"],
 }
-
-# Override: in demo mode, premium tasks use the premium model
-if DEMO_MODE:
-    _ROUTING_TABLE[Task.CART_GENERATION] = ["gpt_oss_120b", "llama_70b", "mistral_large"]
-
 
 # ─── Client Factory (cached) ──────────────────────────────────────────────────
 
@@ -123,9 +110,10 @@ def _invoke_model(
     temperature: float = 0.2,
     max_tokens: int | None = None,
 ) -> dict:
-    """Invoke a specific model and return the parsed response.
+    """Invoke a specific model via Bedrock Converse API.
 
-    Raises Exception on failure (timeout, invalid response, etc.)
+    Returns dict with: text, usage, latency, model
+    Raises on failure.
     """
     config = MODEL_CONFIG[model_key]
     region = config["region"]
@@ -133,16 +121,6 @@ def _invoke_model(
     tokens = max_tokens or config["max_tokens"]
 
     client = get_client(region)
-
-    # Build the request body (Bedrock Converse API format)
-    body = {
-        "messages": messages,
-        "inferenceConfig": {
-            "maxTokens": tokens,
-            "temperature": temperature,
-        },
-    }
-
     start = time.time()
 
     response = client.converse(
@@ -156,7 +134,7 @@ def _invoke_model(
 
     latency = time.time() - start
 
-    # Extract content
+    # Extract text from response
     output = response.get("output", {})
     message = output.get("message", {})
     content_blocks = message.get("content", [])
@@ -168,19 +146,17 @@ def _invoke_model(
 
     # Log metrics
     usage = response.get("usage", {})
+    stop_reason = response.get("stopReason", "?")
     logger.info(
         f"Model={model_key} Region={region} "
         f"Latency={latency:.2f}s "
-        f"InputTokens={usage.get('inputTokens', '?')} "
-        f"OutputTokens={usage.get('outputTokens', '?')} "
-        f"StopReason={response.get('stopReason', '?')}"
+        f"In={usage.get('inputTokens', '?')} "
+        f"Out={usage.get('outputTokens', '?')} "
+        f"Stop={stop_reason}"
     )
 
     if not text:
-        raise ValueError(
-            f"Model '{model_key}' returned empty content. "
-            f"StopReason={response.get('stopReason')}"
-        )
+        raise ValueError(f"Empty response from {model_key}. StopReason={stop_reason}")
 
     return {"text": text, "usage": usage, "latency": latency, "model": model_key}
 
@@ -195,19 +171,10 @@ def invoke(
 ) -> dict:
     """Route a task to the appropriate model with automatic fallback.
 
-    Args:
-        task: The task type to route.
-        messages: Bedrock Converse API message format.
-        temperature: Sampling temperature.
-        max_tokens: Override max tokens (uses model default if None).
-
-    Returns:
-        dict with keys: text, usage, latency, model
-
-    Raises:
-        RuntimeError: If all models in the fallback chain fail.
+    Returns dict with: text, usage, latency, model
+    Raises RuntimeError if all models fail.
     """
-    chain = _ROUTING_TABLE.get(task, ["nova_lite", "mistral_large"])
+    chain = _ROUTING_TABLE.get(task, ["nova_pro", "nova_lite", "llama"])
     errors: list[str] = []
 
     for model_key in chain:
@@ -215,19 +182,18 @@ def invoke(
             result = _invoke_model(model_key, messages, temperature, max_tokens)
             if errors:
                 logger.warning(
-                    f"Task={task.value} succeeded on fallback model={model_key} "
-                    f"after {len(errors)} failures: {errors}"
+                    f"Task={task.value} recovered via {model_key} "
+                    f"after {len(errors)} failures"
                 )
             return result
         except Exception as e:
-            reason = f"{model_key}: {type(e).__name__}: {str(e)[:100]}"
+            reason = f"{model_key}: {type(e).__name__}: {str(e)[:120]}"
             errors.append(reason)
-            logger.warning(f"Task={task.value} model={model_key} failed: {reason}")
+            logger.warning(f"Fallback triggered: {reason}")
             continue
 
     raise RuntimeError(
-        f"All models failed for task={task.value}. "
-        f"Chain={chain}. Errors={errors}"
+        f"All models failed for task={task.value}. Errors: {errors}"
     )
 
 
@@ -237,12 +203,10 @@ def invoke_json(
     temperature: float = 0.2,
     max_tokens: int | None = None,
 ) -> dict:
-    """Invoke and parse the response as JSON.
+    """Invoke and parse response as JSON with robust extraction.
 
-    Attempts JSON extraction with fallback regex if direct parse fails.
+    Returns dict with: text, usage, latency, model, parsed
     """
-    import re
-
     result = invoke(task, messages, temperature, max_tokens)
     raw = result["text"].strip()
 
@@ -257,7 +221,7 @@ def invoke_json(
     try:
         parsed = json.loads(raw)
     except json.JSONDecodeError:
-        # Fallback: extract first JSON object
+        # Fallback: extract first JSON object via regex
         match = re.search(r"\{.*\}", raw, re.DOTALL)
         if match:
             parsed = json.loads(match.group())
@@ -268,8 +232,8 @@ def invoke_json(
 
 
 def get_model_info(task: Task) -> dict:
-    """Get the primary model config for a task (for health/debug endpoints)."""
-    chain = _ROUTING_TABLE.get(task, ["nova_lite"])
+    """Debug/health info for a task's routing."""
+    chain = _ROUTING_TABLE.get(task, ["nova_pro"])
     primary = chain[0]
     config = MODEL_CONFIG[primary]
     return {
@@ -278,5 +242,4 @@ def get_model_info(task: Task) -> dict:
         "model_id": config["model_id"],
         "region": config["region"],
         "fallback_chain": chain,
-        "demo_mode": DEMO_MODE,
     }
