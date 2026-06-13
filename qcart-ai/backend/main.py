@@ -101,6 +101,57 @@ def trending_products(city: str = DEFAULT_CITY):
     log.info("Returning %d trending products for %s", len(products), resolved_city)
     return {"city": resolved_city, "products": products}
 
+def build_alternatives(product):
+
+    category = product.get("category")
+
+    cheaper = None
+    premium = None
+
+    for candidate in catalog.CATALOG:
+
+        if candidate["id"] == product["id"]:
+            continue
+
+        if candidate.get("category") != category:
+            continue
+
+        current_tags = set(product.get("tags", []))
+        candidate_tags = set(candidate.get("tags", []))
+
+        if not current_tags.intersection(candidate_tags):
+            continue
+
+        if current_tags != candidate_tags:
+            continue
+
+        if candidate["price"] < product["price"]:
+            if (
+                cheaper is None
+                or candidate["price"] > cheaper["price"]
+            ):
+                cheaper = {
+                    "id": candidate["id"],
+                    "name": candidate["name"],
+                    "price": candidate["price"]
+                }
+
+        if candidate["price"] > product["price"]:
+            if (
+                premium is None
+                or candidate["price"] < premium["price"]
+            ):
+                premium = {
+                    "id": candidate["id"],
+                    "name": candidate["name"],
+                    "price": candidate["price"]
+                }
+
+    return {
+        "cheaper": cheaper,
+        "premium": premium
+    }
+
 
 # ── Conversational cart ────────────────────────────────────────────────────────
 
@@ -126,12 +177,17 @@ def cart_turn(turn: CartTurn):
 
     # 2b) Apply fallback defaults for any missing keys
     FALLBACK_DEFAULTS = {
-        "reply": "Here's your cart.",
-        "context": "routine",
-        "urgency": "normal",
-        "cart": [],
-        "suggestions": [],
+    "reply": "Here's your cart.",
+    "context": "routine",
+    "urgency": "normal",
+    "cart": [],
+    "suggestions": [],
+    "readiness": {
+        "label": "Readiness",
+        "score": 100,
+        "missing": []
     }
+}
     for key, default in FALLBACK_DEFAULTS.items():
         if key not in result:
             result[key] = default
@@ -147,27 +203,89 @@ def cart_turn(turn: CartTurn):
 
     # 3) validate + enrich cart
     cart_lines = []
+
     for picked in result["cart"]:
         line = catalog.enrich(
             picked.get("product_id"),
             picked.get("quantity", 1),
             picked.get("reason", ""),
         )
-        if line:
-            cart_lines.append(line)
+
+        if not line:
+            continue
+
+        product = catalog.get(line["id"])
+
+        if product:
+            line["alternatives"] = build_alternatives(product)
+        else:
+            line["alternatives"] = {
+                "cheaper": None,
+                "premium": None,
+            }
+
+        cart_lines.append(line)
 
     if not cart_lines:
         raise HTTPException(404, "Couldn't match anything. Try rephrasing.")
 
     # 4) suggestions (validate ids)
+    # 4) suggestions (validate ids)
+
     suggestions = []
+
     in_cart = {l["id"] for l in cart_lines}
+
     for s in result["suggestions"]:
         p = catalog.get(s.get("product_id"))
-        if p and p["id"] not in in_cart:
-            suggestions.append({"id": p["id"], "name": p["name"],
-                                "price": p["price"], "reason": s.get("reason", "")})
 
+        if p and p["id"] not in in_cart:
+            suggestions.append({
+                "id": p["id"],
+                "name": p["name"],
+                "price": p["price"],
+                "reason": s.get("reason", "")
+            })
+
+    context = result["context"]
+
+    raw_readiness = result.get("readiness", {})
+
+    readiness_missing = []
+
+    for item in raw_readiness.get("missing", []):
+
+        product = catalog.get(item.get("product_id"))
+
+        if not product:
+            continue
+
+        if product["id"] in in_cart:
+            continue
+
+        readiness_missing.append({
+            "id": product["id"],
+            "name": product["name"],
+            "price": product["price"],
+            "reason": item.get("reason", "")
+        })
+
+    label = raw_readiness.get("label")
+
+    if not label or label.lower() == context.lower():
+        label = f"{context.replace('_', ' ').title()} readiness"
+
+    readiness = {
+        "label": label,
+        "score": max(
+            0,
+            min(
+                100,
+                int(raw_readiness.get("score", 100))
+            )
+        ),
+        "missing": readiness_missing[:3]
+    }
     context = result["context"]
     subtotal = sum(l["line_total"] for l in cart_lines)
 
@@ -180,6 +298,7 @@ def cart_turn(turn: CartTurn):
         "urgency": result["urgency"],
         "cart": cart_lines,
         "suggestions": suggestions[:2],
+        "readiness": readiness,
         "subtotal": subtotal,
         "free_delivery_threshold": gap.FREE_DELIVERY_THRESHOLD,
         "gap_amount": gap_info["gap_amount"],

@@ -52,10 +52,61 @@ REFINEMENTS (modify current cart, preserve context):
 "for N people" (N=1–20): keep same items, set qty=ceil(N/2), min 1, max 6.
   Invalid N → unchanged, explain range. Empty cart → explain.
 
+  
+  OUTCOME ASSURANCE (READINESS):
+For goal-oriented contexts (party, movie_night, health, baby, routine, late_night):
+Assess whether the cart is complete enough.
+
+Return:
+"readiness": {
+  "label":"<short label>",
+  "score":<0-100>,
+  "missing":[
+    {
+      "product_id":"<catalog id>",
+      "reason":"<max 8 words>"
+    }
+  ]
+}
+
+Rules:
+- missing products MUST exist in catalog
+- never include products already in cart
+- max 3 missing products
+- genuinely relevant only
+- complete cart => score 100
+- refinement-only requests => score 100, missing []
+
+
 OUTPUT (ONLY this JSON, no markdown, no other text):
-{"reply":"<short sentence>","context":"<context>","urgency":"high|normal",
-"cart":[{"product_id":"<id>","quantity":<int>,"reason":"<max 6 words>"}],
-"suggestions":[{"product_id":"<id>","reason":"<max 6 words>"}]}"""
+{
+  "reply":"<short sentence>",
+  "context":"<context>",
+  "urgency":"high|normal",
+  "cart":[
+    {
+      "product_id":"<id>",
+      "quantity":1,
+      "reason":"..."
+    }
+  ],
+  "suggestions":[
+    {
+      "product_id":"<id>",
+      "reason":"..."
+    }
+  ],
+  "readiness":{
+    "label":"...",
+    "score":100,
+    "missing":[
+      {
+        "product_id":"...",
+        "reason":"..."
+      }
+    ]
+  }
+}"""
 
 
 def _context_block(message: str) -> str:
@@ -83,8 +134,36 @@ CURRENT CART:
 USER MESSAGE:
 {message}
 
-RESPOND WITH ONLY VALID JSON — no markdown, no explanation. Use this exact schema:
-{{"reply": "...", "context": "...", "urgency": "...", "cart": [{{"product_id": "...", "quantity": N, "reason": "..."}}], "suggestions": [{{"product_id": "...", "reason": "..."}}]}}
+RESPOND WITH ONLY VALID JSON — no markdown, no explanation.
+
+{{
+  "reply":"...",
+  "context":"...",
+  "urgency":"...",
+  "cart":[
+    {{
+      "product_id":"...",
+      "quantity":1,
+      "reason":"..."
+    }}
+  ],
+  "suggestions":[
+    {{
+      "product_id":"...",
+      "reason":"..."
+    }}
+  ],
+  "readiness":{{
+    "label":"...",
+    "score":100,
+    "missing":[
+      {{
+        "product_id":"...",
+        "reason":"..."
+      }}
+    ]
+  }}
+}}
 """
 
     # Route to Bedrock: cart generation uses Llama/Nova Pro, with fallback
