@@ -10,6 +10,7 @@ Flow per turn:
 """
 
 import json
+from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
@@ -19,7 +20,9 @@ from pydantic import BaseModel
 import brain
 import cache
 import catalog
+import db
 import gap
+import rule_engine
 
 load_dotenv()
 
@@ -126,3 +129,45 @@ def cart_turn(turn: CartTurn):
 
     cache.set(message, turn.cart, payload)
     return payload
+
+# ─── Customer Endpoints ────────────────────────────────────────────────────────
+
+
+@app.get("/api/customer/{customer_id}")
+def get_customer(customer_id: str):
+    """Fetch a customer document by ID."""
+    if db.customers is None:
+        raise HTTPException(503, "MongoDB not configured.")
+
+    doc = db.customers.find_one({"customer_id": customer_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, f"Customer '{customer_id}' not found.")
+    return doc
+
+
+@app.post("/api/customer/{customer_id}/tags")
+def generate_customer_tags(customer_id: str):
+    """Generate and save behavioral tags for a customer using the rule engine."""
+    if db.customers is None or db.customer_tags is None:
+        raise HTTPException(503, "MongoDB not configured.")
+
+    # Load customer
+    customer = db.customers.find_one({"customer_id": customer_id})
+    if not customer:
+        raise HTTPException(404, f"Customer '{customer_id}' not found.")
+
+    # Generate tags via rule engine
+    tags = rule_engine.generate_tags(customer)
+
+    # Upsert into customer_tags collection
+    db.customer_tags.update_one(
+        {"customer_id": customer_id},
+        {"$set": {
+            "customer_id": customer_id,
+            "tags": tags,
+            "updated_at": datetime.now(timezone.utc),
+        }},
+        upsert=True,
+    )
+
+    return {"customer_id": customer_id, "tags": tags}
