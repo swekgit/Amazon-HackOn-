@@ -1,40 +1,49 @@
-"""Shared MongoDB connection.
+"""Shared MongoDB Atlas connection module.
 
-Loads MONGODB_URI from .env, connects once at import time, and exposes
-the database handle plus collection shortcuts.  Every other module that
-needs Mongo should ``import db`` rather than creating its own client.
+All Mongo access goes through this file — never create a second connection.
+Import collections directly:
+    import db
+    db.trending.find_one({"city": "Delhi"})
+    db.customers.find_one({"customer_id": "cust_ravi"})
+    db.customer_tags.update_one(...)
+    db.offers.find({})
 """
 
-import logging
 import os
 
 from dotenv import load_dotenv
 from pymongo import MongoClient
-from pymongo.errors import ConnectionFailure
 
 load_dotenv()
 
-log = logging.getLogger(__name__)
-
 MONGODB_URI = os.getenv("MONGODB_URI", "")
-DB_NAME = os.getenv("MONGODB_DB", "qcart")
 
-if not MONGODB_URI:
-    raise RuntimeError("MONGODB_URI is not set — check your .env file.")
+if MONGODB_URI:
+    _client = MongoClient(MONGODB_URI)
+    _db = _client["qcart"]
 
-try:
-    client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
-    # Force a connection check so we fail fast on bad URIs
-    client.admin.command("ping")
-    log.info("Connected to MongoDB Atlas")
-except ConnectionFailure as exc:
-    log.error("MongoDB connection failed: %s", exc)
-    raise
+    # Collections — the shared contract
+    trending = _db["trending"]
+    customers = _db["customers"]
+    customer_tags = _db["customer_tags"]
+    offers = _db["offers"]
+else:
+    # Graceful degradation: if no Mongo URI, expose None collections
+    # This allows the existing backend to run without Mongo configured
+    _client = None
+    _db = None
+    trending = None
+    customers = None
+    customer_tags = None
+    offers = None
 
-db = client[DB_NAME]
 
-# ── Collection shortcuts ──────────────────────────────────────────────
-trending = db.trending
-customers = db.customers
-customer_tags = db.customer_tags
-offers = db.offers
+def is_connected() -> bool:
+    """Check if MongoDB is connected and responsive."""
+    if _client is None:
+        return False
+    try:
+        _client.admin.command("ping")
+        return True
+    except Exception:
+        return False

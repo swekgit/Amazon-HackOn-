@@ -134,3 +134,108 @@ RESPOND WITH ONLY VALID JSON — no markdown, no explanation. Use this exact sch
         if match:
             return json.loads(match.group())
         raise
+
+
+def recommend_for_you(tags, candidate_products):
+
+    recommended = []
+
+    for p in candidate_products[:5]:
+        recommended.append({
+            "product_id": p["id"],
+            "reason": "Based on your interests"
+        })
+
+    deals = []
+
+    for p in candidate_products:
+        if "offer" in p:
+           deals.append(
+    {
+        "product_id": p["id"],
+        "pitch": pitch_for_product(
+            p,
+            tags,
+            p["offer"]["discount_pct"]
+        ),
+    }
+)
+
+    return {
+        "recommended": recommended[:5],
+        "deals": deals[:3]
+    }
+
+def personalize_copy(
+    tags: list[str],
+    recommended_products: list[dict],
+    deal_products: list[dict],
+) -> dict:
+
+    payload = {
+        "customer_tags": tags,
+        "recommended": recommended_products,
+        "deals": deal_products,
+    }
+
+    prompt = f"""
+Return ONLY valid JSON.
+
+Customer:
+{json.dumps(payload)}
+
+Rules:
+- reasons <= 8 words
+- pitches <= 10 words
+- Use only supplied ids
+- Mention only supplied discounts
+- No markdown
+
+Output:
+
+{{
+  "reasons": {{
+    "product_id": "reason"
+  }},
+  "pitches": {{
+    "product_id": "pitch"
+  }}
+}}
+"""
+
+    try:
+        resp = client.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.2,
+            max_tokens=600,
+        )
+
+        content = resp.choices[0].message.content
+
+        if not content:
+            return {
+                "reasons": {},
+                "pitches": {},
+            }
+
+        raw = (
+            content.strip()
+            .removeprefix("```json")
+            .removeprefix("```")
+            .removesuffix("```")
+            .strip()
+        )
+
+        return json.loads(raw)
+
+    except Exception:
+        return {
+            "reasons": {},
+            "pitches": {},
+        }

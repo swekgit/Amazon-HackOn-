@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ShoppingCart, Zap, Plus, CheckCircle2, Sparkles, Trash2 } from "lucide-react";
+
+
+
 import { useApp } from "../state/AppContext.jsx";
 import CartItem from "./CartItem.jsx";
 import AICartSummary from "./AICartSummary.jsx";
