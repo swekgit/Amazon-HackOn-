@@ -8,16 +8,17 @@ helpful nudge instead of a fee.
 
 import catalog
 
-FREE_DELIVERY_THRESHOLD = 199          # ₹ — tune for your demo
+FREE_DELIVERY_THRESHOLD = 399          # ₹ — tune for your demo
 
 # Which catalog tags are "relevant" for each detected context.
 CONTEXT_TAGS = {
     "movie_night": ["movie", "snack", "sweet"],
     "party": ["party", "snack", "drink"],
-    "health": ["fever", "immunity", "comfort"],
+    "health": ["fever", "immunity", "comfort", "medicine"],
     "baby": ["baby", "newparent"],
     "routine": ["weekly", "staple", "breakfast"],
     "late_night": ["snack", "instant", "drink"],
+    "other": ["snack", "staple"],
 }
 
 
@@ -35,18 +36,26 @@ def compute(cart: list, context: str = "routine") -> dict:
     for p in catalog.CATALOG:
         if p["id"] in in_cart:
             continue
-        if p["price"] > gap + 60:                 # don't overshoot the gap wildly
-            continue
         score = len(relevant.intersection(p["tags"]))
-        # closeness to the gap (cheaper-than-gap items preferred), plus relevance
-        closeness = -abs(p["price"] - gap)
-        candidates.append((score, closeness, p))
+        abs_diff = abs(p["price"] - gap)
+        candidates.append((score, abs_diff, p))
 
-    candidates.sort(key=lambda c: (c[0], c[1]), reverse=True)
+    # Primary sort: tag-overlap descending; secondary: abs price-gap difference ascending
+    candidates.sort(key=lambda c: (-c[0], c[1]))
 
-    fillers = [
-        {"id": p["id"], "name": p["name"], "price": p["price"],
-         "reason": "rounds you up to free delivery"}
-        for _, _, p in candidates[:3]
-    ]
+    # Cumulative overshoot guard: combined filler prices must not exceed gap + 60
+    max_total = gap + 60
+    fillers = []
+    running_total = 0
+    for _, _, p in candidates:
+        if len(fillers) >= 3:
+            break
+        if running_total + p["price"] > max_total:
+            continue
+        running_total += p["price"]
+        fillers.append(
+            {"id": p["id"], "name": p["name"], "price": p["price"],
+             "reason": "rounds you up to free delivery"}
+        )
+
     return {"gap_amount": gap, "gap_fillers": fillers}

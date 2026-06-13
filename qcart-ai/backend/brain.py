@@ -13,48 +13,65 @@ catalog clears that comfortably.)
 
 import json
 import os
+import re
 
-from anthropic import Anthropic
+from openai import OpenAI
 
 import catalog
 
-MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-6")
-client = Anthropic()
+MODEL = os.getenv(
+    "MODEL_NAME",
+    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
+)
 
-INSTRUCTIONS = """You are the brain of a MOMENT-AWARE quick-commerce app (10-min delivery).
-The user tells you a moment or need in plain language ("movie night for 4",
-"I have fever", "party for 6", "this week's groceries") OR asks to change the
-current cart ("make it cheaper", "remove dairy", "add something for the kids").
+from dotenv import load_dotenv
 
-You receive: the current cart, the user's new message, the product CATALOG, and
-the user's recent ORDER HISTORY / preferences.
+load_dotenv()
 
-Rules:
-- Build or update the cart to fit the message. If the cart is empty, build it fresh.
-- ONLY use product ids that exist in the catalog. Never invent ids.
-- Use the history to personalise (respect diet, favour items they reorder), but
-  only when relevant to the current moment.
-- Set realistic quantities from the number of people / context.
-- Respect refinements precisely: "cheaper" -> swap to lower-price picks; "premium"
-  -> upgrade; "remove X" -> drop it; "more people" -> scale quantities.
-- Classify the moment:
-    context  = one of: movie_night, party, health, baby, routine, late_night, other
-    urgency  = "high" for health/emergency/late-night essentials, else "normal"
-- Also suggest 1-2 complementary items NOT already in the cart (the copilot touch).
+client = OpenAI(
+    base_url="https://integrate.api.nvidia.com/v1",
+    api_key=os.getenv("NVIDIA_API_KEY"),
+    timeout=45,
+)
 
-Respond with ONLY valid JSON, no markdown, exactly this shape:
-{
-  "reply": "one short friendly sentence about what you did",
-  "context": "movie_night",
-  "urgency": "normal",
-  "cart": [ { "product_id": "p001", "quantity": 2, "reason": "max 6 words" } ],
-  "suggestions": [ { "product_id": "p005", "reason": "max 6 words" } ]
-}"""
+INSTRUCTIONS = """You are a quick-commerce cart AI. Respond with ONLY valid JSON.
+
+CONTEXT CLASSIFICATION (case-insensitive, first match wins):
+"movie night"→movie_night | "party"→party | "fever"/"sick"/"cold"→health
+"baby"/"newborn"/"infant"→baby | "groceries"/"restock"→routine
+"late night"/"midnight"→late_night | else→other
+On refinement commands, keep previous context.
+
+URGENCY: health/baby→"high", all others→"normal". Only these two values.
+
+CART CONSTRUCTION (empty cart or new scenario):
+Tag rules: movie_night→"movie"/"snack", party→"party", health→"fever"/"medicine"
+baby→"baby"/"newparent", routine→"weekly"/"staple", late_night→"snack"/"instant"
+other→sensible mix. Cart size: 3–10 items. Suggest 1–2 extras not in cart.
+Quantity: default 1. For N people: ceil(N/2), min 1, max 6.
+ONLY use product_id from CATALOG.
+
+REFINEMENTS (modify current cart, preserve context):
+"make it cheaper": swap each item to "cheap"-tagged in same category if exists,
+  else keep unchanged. Preserve quantities. Total MUST decrease.
+  No alternatives found → return unchanged, explain in reply.
+"make it premium": swap each item to "premium"-tagged in same category if exists,
+  else keep unchanged. Preserve quantities. Total MUST increase.
+  Empty cart → reply no cart to upgrade.
+"remove dairy": drop all "dairy"-tagged items. Keep rest unchanged.
+  No dairy → unchanged, explain. All dairy → empty cart.
+"for N people" (N=1–20): keep same items, set qty=ceil(N/2), min 1, max 6.
+  Invalid N → unchanged, explain range. Empty cart → explain.
+
+OUTPUT (ONLY this JSON, no markdown, no other text):
+{"reply":"<short sentence>","context":"<context>","urgency":"high|normal",
+"cart":[{"product_id":"<id>","quantity":<int>,"reason":"<max 6 words>"}],
+"suggestions":[{"product_id":"<id>","reason":"<max 6 words>"}]}"""
 
 
-def _context_block() -> str:
+def _context_block(message: str) -> str:
     return (
-        f"CATALOG (choose product_id only from here):\n{catalog.compact_catalog()}\n\n"
+        f"CATALOG (choose product_id only from here):\n{catalog.retrieve(message)}\n\n"
         f"USER HISTORY / PREFERENCES:\n{catalog.history_summary()}"
     )
 
@@ -66,24 +83,54 @@ def think(message: str, cart: list) -> dict:
         for i in cart
     ]
 
-    resp = client.messages.create(
+    prompt = f"""
+{INSTRUCTIONS}
+
+{_context_block(message)}
+
+CURRENT CART:
+{json.dumps(cart_state)}
+
+USER MESSAGE:
+{message}
+
+RESPOND WITH ONLY VALID JSON — no markdown, no explanation. Use this exact schema:
+{{"reply": "...", "context": "...", "urgency": "...", "cart": [{{"product_id": "...", "quantity": N, "reason": "..."}}], "suggestions": [{{"product_id": "...", "reason": "..."}}]}}
+"""
+
+    resp = client.chat.completions.create(
         model=MODEL,
-        max_tokens=1200,
-        system=[
-            {"type": "text", "text": INSTRUCTIONS},
-            # cached prefix: catalog + history (same every call)
-            {"type": "text", "text": _context_block(),
-             "cache_control": {"type": "ephemeral"}},
+        messages=[
+            {
+                "role": "user",
+                "content": prompt
+            }
         ],
-        messages=[{
-            "role": "user",
-            "content": (
-                f"CURRENT CART: {json.dumps(cart_state)}\n"
-                f"USER MESSAGE: {message}"
-            ),
-        }],
+        temperature=0.2,
+        max_tokens=16384
     )
 
-    raw = "".join(b.text for b in resp.content if b.type == "text").strip()
-    raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-    return json.loads(raw)
+    content = resp.choices[0].message.content
+    if content is None:
+        raise ValueError(
+            f"Model returned empty content. "
+            f"Check your NVIDIA_API_KEY and that model '{MODEL}' is accessible. "
+            f"Finish reason: {resp.choices[0].finish_reason}"
+        )
+
+    raw = content.strip()
+    raw = (
+        raw.removeprefix("```json")
+           .removeprefix("```")
+           .removesuffix("```")
+           .strip()
+    )
+
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        # Fallback: extract first JSON object using regex
+        match = re.search(r"\{.*\}", raw, re.DOTALL)
+        if match:
+            return json.loads(match.group())
+        raise
