@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Mic, AlertCircle } from "lucide-react";
+import { motion } from "framer-motion";
+import { Mic } from "lucide-react";
 
-// Browser speech-to-text. Hides itself if the browser doesn't support it.
-export default function VoiceButton({ onResult, theme, disabled }) {
+export default function VoiceButton({ onResult, disabled }) {
   const [supported, setSupported] = useState(false);
   const [status, setStatus] = useState("idle"); // idle | listening | error
   const recRef = useRef(null);
@@ -79,34 +79,35 @@ export default function VoiceButton({ onResult, theme, disabled }) {
   const error = status === "error";
 
   return (
-    <div className="flex items-center gap-2">
-      <button
-        type="button"
+    <div className="relative">
+      {/* Pulse rings when listening */}
+      {listening && (
+        <>
+          <motion.div
+            className="absolute inset-0 rounded-xl bg-rose-500/30"
+            animate={{ scale: [1, 1.5], opacity: [0.5, 0] }}
+            transition={{ repeat: Infinity, duration: 1.2 }}
+          />
+          <motion.div
+            className="absolute inset-0 rounded-xl bg-rose-500/20"
+            animate={{ scale: [1, 1.3], opacity: [0.4, 0] }}
+            transition={{ repeat: Infinity, duration: 1.2, delay: 0.3 }}
+          />
+        </>
+      )}
+      <motion.button
         onClick={toggle}
         disabled={disabled}
+        whileTap={{ scale: 0.95 }}
         aria-label="Speak your need"
-        className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ring-1 transition disabled:opacity-40 ${
+        className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-xl ring-1 transition disabled:opacity-40 ${
           listening
-            ? "animate-pulse bg-rose-600 text-white ring-rose-600"
-            : error
-            ? "bg-rose-50 text-rose-600 ring-rose-200"
+            ? "bg-rose-600 text-white ring-rose-600"
             : "bg-white text-ink ring-black/10 hover:ring-smart"
         }`}
       >
-        {error ? <AlertCircle size={18} /> : <Mic size={18} />}
-      </button>
-
-      {listening && (
-        <span className="animate-fade-up text-xs font-medium text-ink/60">
-          Listening…
-        </span>
-      )}
-
-      {error && (
-        <span className="animate-fade-up text-xs font-medium text-rose-600">
-          Mic unavailable
-        </span>
-      )}
+        <Mic size={18} />
+      </motion.button>
     </div>
   );
 }
