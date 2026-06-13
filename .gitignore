@@ -1,5 +1,6 @@
 # React
 node_modules/
+.kiro
 
 # Python
 .venv/
