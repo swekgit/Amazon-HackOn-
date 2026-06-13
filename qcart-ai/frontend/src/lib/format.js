@@ -6,10 +6,13 @@ export const formatINR = (n) => "₹" + Math.round(n).toLocaleString("en-IN");
 // plus ~6 min / 8 taps of browsing overhead. New way: ~8 seconds, ~2 taps.
 export function savings(cart) {
   const lines = cart.length;
+
   const oldMinutes = lines * 4 + 6;
   const oldTaps = lines * 6 + 8;
+
   return {
-    minutes: Math.max(0, oldMinutes), // "new way" is seconds, so saved ≈ old
+    oldMinutes,
+    minutes: Math.max(0, oldMinutes),
     taps: Math.max(0, oldTaps - 2),
   };
 }

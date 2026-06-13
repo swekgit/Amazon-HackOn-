@@ -6,6 +6,7 @@ import MissionTiles from "./components/MissionTiles.jsx";
 import CartPanel from "./components/CartPanel.jsx";
 import GapNudge from "./components/GapNudge.jsx";
 import SavedCounter from "./components/SavedCounter.jsx";
+import QuickActions from "./components/QuickActions.jsx";
 
 export default function App() {
   const c = useConversation();
@@ -23,8 +24,14 @@ export default function App() {
         </h1>
       </header>
 
-      <div className="grid gap-8 md:grid-cols-[1fr_minmax(320px,400px)]">
-        {/* Left — conversation */}
+      {theme.urgent && (
+  <div className="mb-6 animate-fade-up rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 transition-all duration-500">
+    <span className="font-medium">Care mode</span>
+    <span className="mx-2 text-rose-300">·</span>
+    essentials first
+  </div>
+)}
+<div className="grid gap-6 md:gap-8 md:grid-cols-[1fr_minmax(320px,400px)]">        {/* Left — conversation */}
         <div className="flex flex-col gap-4">
           {!c.hasCart && c.messages.length === 0 && (
             <MissionTiles onPick={c.send} disabled={c.loading} />
@@ -49,7 +56,14 @@ export default function App() {
             <>
               <SavedCounter cart={c.cart} />
               <GapNudge gapAmount={c.gapAmount} fillers={c.meta.gapFillers} onAdd={c.addProduct} />
-              <CartPanel
+
+                <QuickActions
+                  onSend={c.send}
+                  disabled={c.loading}
+                  theme={theme}
+                />
+
+                <CartPanel
                 cart={c.cart}
                 subtotal={c.subtotal}
                 suggestions={c.meta.suggestions}
