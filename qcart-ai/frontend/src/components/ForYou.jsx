@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, Sparkles, Tag, TrendingUp } from "lucide-react";
 import { useApp } from "../state/AppContext.jsx";
+import PredictedForYouCard from "./PredictedForYouCard.jsx";
 
 const CUSTOMERS = [
   { label: "Ravi", value: "cust_ravi" },
@@ -13,18 +14,20 @@ const CUSTOMERS = [
   { label: "Meera", value: "cust_meera" },
 ];
 
-export default function ForYou({  }) {
+export default function ForYou({ }) {
   const [customerId, setCustomerId] = useState("cust_ananya");
-  const { city,  addProduct  } = useApp();
+  const { city, addProduct } = useApp();
   const [data, setData] = useState(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const [trending, setTrending] = useState(null);
+  const [predictions, setPredictions] = useState([]);
 
   useEffect(() => {
   loadForYou(customerId);
+  loadPredictions(customerId);
 }, [customerId, city]);
 
   async function loadForYou(id) {
@@ -44,8 +47,8 @@ export default function ForYou({  }) {
       // optional trending endpoint
       try {
         const trendRes = await fetch(
-  `/api/trending?city=${encodeURIComponent(city)}`
-);
+          `/api/trending?city=${encodeURIComponent(city)}`
+        );
 
         if (trendRes.ok) {
           const trendJson = await trendRes.json();
@@ -58,6 +61,17 @@ export default function ForYou({  }) {
       setError(err.message || "Something went wrong");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadPredictions(id) {
+    try {
+      const res = await fetch(`/api/predicted?customer_id=${id}`);
+      if (!res.ok) throw new Error("predictions failed");
+      const json = await res.json();
+      setPredictions(json.predictions || []);
+    } catch {
+      setPredictions([]);
     }
   }
 
@@ -87,6 +101,14 @@ export default function ForYou({  }) {
           ))}
         </select>
       </div>
+
+      {/* Predicted For You — independent fetch */}
+      <PredictedForYouCard
+        predictions={predictions}
+        onAddKit={(prediction) => {
+          prediction.cart?.forEach((item) => addProduct(item));
+        }}
+      />
 
       {/* Loading */}
       {loading && (
@@ -132,7 +154,7 @@ export default function ForYou({  }) {
               </h2>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 grid-cols-1 min-[360px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {data.recommended?.map((product) => (
                 <div
                   key={product.id}
@@ -174,7 +196,7 @@ export default function ForYou({  }) {
               </h2>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 grid-cols-1 min-[360px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {data.deals?.map((deal) => (
                 <div
                   key={deal.id}

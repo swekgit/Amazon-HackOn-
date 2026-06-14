@@ -57,7 +57,7 @@ export default function CartItem({ item, index, onQty, onRemove }) {
             <button
               onClick={() => onRemove(item.id)}
               aria-label={`Remove ${item.name}`}
-              className="shrink-0 p-1 rounded-lg text-muted hover:text-rose hover:bg-rose-soft transition"
+              className="shrink-0 p-3 -m-2 rounded-lg text-muted hover:text-rose hover:bg-rose-soft transition"
             >
               <X size={14} />
             </button>
@@ -87,13 +87,13 @@ export default function CartItem({ item, index, onQty, onRemove }) {
 
           {/* Price + Qty stepper */}
           <div className="flex items-center justify-between mt-2.5">
-            <div className="flex items-center rounded-full ring-1 ring-line bg-canvas">
+            <div className="flex items-center rounded-full ring-1 ring-line bg-canvas h-11">
               <button
                 onClick={() => onQty(item.id, item.quantity - 1)}
                 aria-label="Decrease"
-                className="grid h-7 w-7 place-items-center rounded-full hover:bg-white transition"
+                className="grid h-full w-11 place-items-center rounded-full hover:bg-white transition"
               >
-                <Minus size={12} />
+                <Minus size={14} />
               </button>
               <span className="w-6 text-center font-display text-sm font-semibold text-ink">
                 {item.quantity}
@@ -101,9 +101,9 @@ export default function CartItem({ item, index, onQty, onRemove }) {
               <button
                 onClick={() => onQty(item.id, item.quantity + 1)}
                 aria-label="Increase"
-                className="grid h-7 w-7 place-items-center rounded-full hover:bg-white transition"
+                className="grid h-full w-11 place-items-center rounded-full hover:bg-white transition"
               >
-                <Plus size={12} />
+                <Plus size={14} />
               </button>
             </div>
 
