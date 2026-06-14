@@ -118,11 +118,10 @@ function ReadinessBlock({ readiness, onAdd }) {
               key={item.id}
               onClick={() => handleAdd(item)}
               disabled={isAdded}
-              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium transition ring-1 ${
-                isAdded
-                  ? "bg-green-soft text-green ring-green/15"
-                  : "bg-white text-ink ring-line hover:ring-brand/30"
-              }`}
+              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium transition ring-1 ${isAdded
+                ? "bg-green-soft text-green ring-green/15"
+                : "bg-white text-ink ring-line hover:ring-brand/30"
+                }`}
             >
               {isAdded ? <Check size={10} /> : <Plus size={10} />}
               {item.name} · {formatINR(item.price)}
@@ -136,7 +135,7 @@ function ReadinessBlock({ readiness, onAdd }) {
 
 /* ── Cart Drawer (main) ────────────────────────────────────── */
 export default function CartDrawer() {
-  const { cart, subtotal, setCartOpen, setChatOpen, meta,readiness, addProduct, setQty, removeItem, gapAmount, hasCart, clearCart } = useApp();
+  const { cart, subtotal, setCartOpen, setChatOpen, meta, readiness, addProduct, setQty, removeItem, gapAmount, hasCart, clearCart } = useApp();
   const [placed, setPlaced] = useState(false);
   const [showClearModal, setShowClearModal] = useState(false);
   const [showClearToast, setShowClearToast] = useState(false);
@@ -187,29 +186,29 @@ export default function CartDrawer() {
           ref={swipeRef}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
-          className="flex items-center justify-between px-5 py-3.5 bg-white border-b border-line"
+          className="flex items-center justify-between px-5 py-4 bg-white border-b border-line"
         >
-          <div className="flex items-center gap-2">
-            <ShoppingCart size={18} className="text-brand" />
-            <h2 className="font-display text-base font-bold text-ink">Your Cart</h2>
+          <div className="flex items-center gap-3">
+            <ShoppingCart size={24} className="text-brand" />
+            <h2 className="font-display text-3xl font-bold text-ink">Your Cart</h2>
             {cart.length > 0 && (
-              <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-bold text-brand-deep">
+              <span className="rounded-full bg-brand-soft px-3 py-1.5 text-sm font-semibold text-brand-deep">
                 {cart.length}
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             {cart.length > 0 && (
               <button
                 onClick={() => setShowClearModal(true)}
-                className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-semibold text-rose bg-rose-soft ring-1 ring-rose/10 hover:ring-rose/30 transition"
+                className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-rose bg-rose-soft ring-1 ring-rose/10 hover:ring-rose/30 transition"
               >
-                <Trash2 size={12} />
+                <Trash2 size={16} />
                 <span className="hidden sm:inline">Clear</span>
               </button>
             )}
             <button onClick={() => setCartOpen(false)} className="p-2 rounded-lg hover:bg-canvas transition">
-              <X size={18} />
+              <X size={24} />
             </button>
           </div>
         </div>
