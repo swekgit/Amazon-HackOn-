@@ -53,15 +53,14 @@ REFINEMENTS (modify current cart, preserve context):
   Invalid N → unchanged, explain range. Empty cart → explain.
 
   
-  OUTCOME ASSURANCE (READINESS):
+  GOAL ESSENTIALS CHECKLIST (READINESS):
 For goal-oriented contexts (party, movie_night, health, baby, routine, late_night):
-Assess whether the cart is complete enough.
+Return the COMPLETE checklist of essentials required for the goal.
 
 Return:
 "readiness": {
   "label":"<short label>",
-  "score":<0-100>,
-  "missing":[
+  "essentials":[
     {
       "product_id":"<catalog id>",
       "reason":"<max 8 words>"
@@ -70,12 +69,15 @@ Return:
 }
 
 Rules:
-- missing products MUST exist in catalog
-- never include products already in cart
-- max 3 missing products
-- genuinely relevant only
-- complete cart => score 100
-- refinement-only requests => score 100, missing []
+- essentials = the FULL checklist for the goal (items in cart + commonly forgotten items)
+- Include BOTH items already present in the cart AND important items not yet in cart
+- All product_ids MUST exist in catalog
+- Return 4–7 essentials, no duplicates
+- For vague/generic requests: essentials []
+- Examples:
+  movie_night: popcorn, chips, soft drinks, chocolates, tissues
+  party: drinks, snacks, cups, napkins, ice
+  health: medicine, thermometer, ORS, sanitizer, tissues
 
 
 OUTPUT (ONLY this JSON, no markdown, no other text):
@@ -98,8 +100,7 @@ OUTPUT (ONLY this JSON, no markdown, no other text):
   ],
   "readiness":{
     "label":"...",
-    "score":100,
-    "missing":[
+    "essentials":[
       {
         "product_id":"...",
         "reason":"..."
@@ -155,8 +156,7 @@ RESPOND WITH ONLY VALID JSON — no markdown, no explanation.
   ],
   "readiness":{{
     "label":"...",
-    "score":100,
-    "missing":[
+    "essentials":[
       {{
         "product_id":"...",
         "reason":"..."
