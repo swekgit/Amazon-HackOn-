@@ -93,3 +93,65 @@ body {
     background-clip: text;
   }
 }
+
+/* ── Segmented Toggle (For You / Cart Assistant) ───────────── */
+.segmented-toggle-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 16px 16px 4px;
+  position: relative;
+  z-index: 15;
+}
+
+.segmented-toggle {
+  display: inline-flex;
+  background: #F3F4F6;
+  border-radius: 9999px;
+  padding: 4px;
+  gap: 2px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.segmented-toggle__tab {
+  position: relative;
+  padding: 10px 28px;
+  border-radius: 9999px;
+  border: none;
+  cursor: pointer;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #6B7280;
+  background: transparent;
+  transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  white-space: nowrap;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.segmented-toggle__tab:hover:not(.segmented-toggle__tab--active) {
+  color: #374151;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.segmented-toggle__tab--active {
+  background: #F97316;
+  color: #FFFFFF;
+  box-shadow:
+    0 2px 8px rgba(249, 115, 22, 0.3),
+    0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.segmented-toggle__tab--active:hover {
+  background: #EA580C;
+}
+
+/* Responsive sizing */
+@media (max-width: 480px) {
+  .segmented-toggle__tab {
+    padding: 8px 20px;
+    font-size: 13px;
+  }
+}
+

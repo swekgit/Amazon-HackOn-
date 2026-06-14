@@ -13,9 +13,9 @@ const CUSTOMERS = [
   { label: "Meera", value: "cust_meera" },
 ];
 
-export default function ForYou({  }) {
+export default function ForYou({ }) {
   const [customerId, setCustomerId] = useState("cust_ananya");
-  const { city,  addProduct  } = useApp();
+  const { city, addProduct } = useApp();
   const [data, setData] = useState(null);
 
   const [loading, setLoading] = useState(true);
@@ -24,8 +24,8 @@ export default function ForYou({  }) {
   const [trending, setTrending] = useState(null);
 
   useEffect(() => {
-  loadForYou(customerId);
-}, [customerId, city]);
+    loadForYou(customerId);
+  }, [customerId, city]);
 
   async function loadForYou(id) {
     try {
@@ -44,8 +44,8 @@ export default function ForYou({  }) {
       // optional trending endpoint
       try {
         const trendRes = await fetch(
-  `/api/trending?city=${encodeURIComponent(city)}`
-);
+          `/api/trending?city=${encodeURIComponent(city)}`
+        );
 
         if (trendRes.ok) {
           const trendJson = await trendRes.json();

@@ -51,11 +51,10 @@ export default function GapNudge({ gapAmount, fillers, onAdd, threshold, subtota
                 key={f.id}
                 onClick={() => handleAdd(f)}
                 disabled={isAdded}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition ring-1 ${
-                  isAdded
-                    ? "bg-fresh-soft text-fresh ring-fresh/20"
-                    : "bg-white text-ink/70 ring-black/10 hover:ring-fresh"
-                }`}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition ring-1 ${isAdded
+                  ? "bg-fresh-soft text-fresh ring-fresh/20"
+                  : "bg-white text-ink/70 ring-black/10 hover:ring-fresh"
+                  }`}
               >
                 {isAdded ? <Check size={12} /> : <Plus size={12} />}
                 {f.name} · {formatINR(f.price)}
