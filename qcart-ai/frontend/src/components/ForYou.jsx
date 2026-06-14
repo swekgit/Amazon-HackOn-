@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, Sparkles, Tag, TrendingUp } from "lucide-react";
 import { useApp } from "../state/AppContext.jsx";
+import PredictedForYouCard from "./PredictedForYouCard.jsx";
 
 const CUSTOMERS = [
   { label: "Ravi", value: "cust_ravi" },
@@ -22,10 +23,12 @@ export default function ForYou({ }) {
   const [error, setError] = useState("");
 
   const [trending, setTrending] = useState(null);
+  const [predictions, setPredictions] = useState([]);
 
   useEffect(() => {
-    loadForYou(customerId);
-  }, [customerId, city]);
+  loadForYou(customerId);
+  loadPredictions(customerId);
+}, [customerId, city]);
 
   async function loadForYou(id) {
     try {
@@ -61,6 +64,17 @@ export default function ForYou({ }) {
     }
   }
 
+  async function loadPredictions(id) {
+    try {
+      const res = await fetch(`/api/predicted?customer_id=${id}`);
+      if (!res.ok) throw new Error("predictions failed");
+      const json = await res.json();
+      setPredictions(json.predictions || []);
+    } catch {
+      setPredictions([]);
+    }
+  }
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -87,6 +101,14 @@ export default function ForYou({ }) {
           ))}
         </select>
       </div>
+
+      {/* Predicted For You — independent fetch */}
+      <PredictedForYouCard
+        predictions={predictions}
+        onAddKit={(prediction) => {
+          prediction.cart?.forEach((item) => addProduct(item));
+        }}
+      />
 
       {/* Loading */}
       {loading && (
