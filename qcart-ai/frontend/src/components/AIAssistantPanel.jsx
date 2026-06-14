@@ -173,7 +173,7 @@ export default function AIAssistantPanel({ detectedMoment }) {
                 {/* Free delivery */}
                 {hasCart && gapAmount > 0 && (
                   <div className="rounded-xl p-3" style={{ backgroundColor: "#FFF7ED", border: "1px solid #FDBA7420" }}>
-                    <div className="flex items-center justify-between text-xs">
+                    <div className="flex flex-wrap items-center justify-between gap-1 text-xs">
                       <span className="text-gray-800 font-medium">🚚 <span className="font-bold" style={{ color: "#EA580C" }}>{formatINR(gapAmount)}</span> away from free delivery</span>
                       <span className="text-gray-400">{formatINR(subtotal)} / {formatINR(meta.threshold || 199)}</span>
                     </div>

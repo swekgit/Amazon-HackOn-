@@ -85,14 +85,14 @@ export default function ProductCard({
         <div className="mt-2.5">
           {qty > 0 ? (
             /* Quantity stepper */
-            <div className="flex items-center justify-between rounded-lg overflow-hidden ring-1 ring-gray-200">
+            <div className="flex items-center justify-between rounded-lg overflow-hidden ring-1 ring-gray-200 h-[44px]">
               <button
                 onClick={() =>
                   qty <= 1
                     ? removeItem(product.id)
                     : setQty(product.id, qty - 1)
                 }
-                className="grid h-9 w-9 place-items-center text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition"
+                className="grid h-11 w-11 shrink-0 place-items-center text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition"
                 aria-label="Decrease quantity"
               >
                 <Minus size={14} />
@@ -102,7 +102,7 @@ export default function ProductCard({
               </span>
               <button
                 onClick={() => setQty(product.id, qty + 1)}
-                className="grid h-9 w-9 place-items-center text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition"
+                className="grid h-11 w-11 shrink-0 place-items-center text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition"
                 aria-label="Increase quantity"
               >
                 <Plus size={14} />
@@ -114,7 +114,7 @@ export default function ProductCard({
               onClick={() =>
                 addProduct({ ...product, reason: subtitle || "recommended for you" })
               }
-              className="w-full flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold transition active:scale-[0.97]"
+              className="w-full flex items-center justify-center gap-1.5 rounded-lg min-h-[44px] text-sm font-semibold transition active:scale-[0.97]"
               style={{ backgroundColor: "#FFD814", color: "#111827" }}
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F7CA00")}
               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#FFD814")}

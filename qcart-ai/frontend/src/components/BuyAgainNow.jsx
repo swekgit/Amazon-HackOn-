@@ -75,7 +75,7 @@ export default function BuyAgainNow() {
                 <div className="mt-2.5">
                   {qty > 0 ? (
                     <div
-                      className="flex items-center justify-between rounded-lg overflow-hidden"
+                      className="flex items-center justify-between rounded-lg overflow-hidden h-[44px]"
                       style={{ border: "1px solid #E5E7EB" }}
                     >
                       <button
@@ -84,7 +84,7 @@ export default function BuyAgainNow() {
                             ? removeItem(product.id)
                             : setQty(product.id, qty - 1)
                         }
-                        className="grid h-9 w-9 place-items-center text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition"
+                        className="grid h-11 w-11 shrink-0 place-items-center text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition"
                       >
                         <Minus size={14} />
                       </button>
@@ -93,7 +93,7 @@ export default function BuyAgainNow() {
                       </span>
                       <button
                         onClick={() => setQty(product.id, qty + 1)}
-                        className="grid h-9 w-9 place-items-center text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition"
+                        className="grid h-11 w-11 shrink-0 place-items-center text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition"
                       >
                         <Plus size={14} />
                       </button>
@@ -101,7 +101,7 @@ export default function BuyAgainNow() {
                   ) : (
                     <button
                       onClick={() => addProduct({ ...product, reason: "frequently purchased" })}
-                      className="w-full flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold transition active:scale-[0.97]"
+                      className="w-full flex items-center justify-center gap-1.5 rounded-lg min-h-[44px] text-sm font-semibold transition active:scale-[0.97]"
                       style={{ backgroundColor: "#FFD814", color: "#111827" }}
                       onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F7CA00")}
                       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#FFD814")}

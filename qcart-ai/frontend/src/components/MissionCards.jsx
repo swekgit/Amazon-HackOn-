@@ -37,7 +37,7 @@ export default function MissionCards({ onMomentSelect }) {
         <h2 className="font-display text-lg sm:text-xl font-bold text-ink">What's your moment?</h2>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-3">
+      <div className="grid grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-3">
         {MISSIONS.map((mi, i) => {
           const visual = MISSION_VISUALS[mi.label] || { iconBg: "bg-gray-50", borderAccent: "border-gray-200" };
           return (

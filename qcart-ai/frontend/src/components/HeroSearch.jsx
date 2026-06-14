@@ -147,28 +147,28 @@ export default function HeroSearch({ onSubmit }) {
           className="mt-10 mx-auto"
           style={{ maxWidth: "760px" }}
         >
-          <div className="relative flex items-center gap-2 rounded-full bg-white p-2 pl-6 shadow-lg focus-within:ring-2 focus-within:ring-orange-300 transition-all"
+          <div className="relative flex items-center gap-1 sm:gap-2 rounded-[2rem] sm:rounded-full bg-white p-1.5 sm:p-2 pl-4 sm:pl-6 shadow-lg focus-within:ring-2 focus-within:ring-orange-300 transition-all w-full"
             style={{ border: "1px solid #E5E7EB" }}
           >
-            <Search size={20} className="shrink-0" style={{ color: "#9CA3AF" }} />
+            <Search size={18} className="shrink-0 sm:w-5 sm:h-5" style={{ color: "#9CA3AF" }} />
             <div className="relative min-w-0 flex-1">
               <input
                 ref={inputRef}
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && submit()}
-                className="w-full bg-transparent py-3 text-base text-ink placeholder:text-transparent focus:outline-none"
+                className="w-full bg-transparent py-2 sm:py-3 text-sm sm:text-base text-ink placeholder:text-transparent focus:outline-none"
                 placeholder={displayedPlaceholder}
               />
               {/* Animated placeholder overlay — UNCHANGED */}
               {!text && (
-                <div className="absolute inset-0 flex items-center pointer-events-none">
-                  <span className="text-base" style={{ color: "#9CA3AF" }}>
+                <div className="absolute inset-0 flex items-center pointer-events-none overflow-hidden">
+                  <span className="text-sm sm:text-base whitespace-nowrap text-ellipsis" style={{ color: "#9CA3AF" }}>
                     {displayedPlaceholder}
                     <motion.span
                       animate={{ opacity: [1, 0] }}
                       transition={{ repeat: Infinity, duration: 0.8 }}
-                      className="inline-block w-0.5 h-5 ml-0.5 align-middle"
+                      className="inline-block w-[1.5px] h-4 sm:w-0.5 sm:h-5 ml-0.5 align-middle"
                       style={{ backgroundColor: "#F9731680" }}
                     />
                   </span>
@@ -177,16 +177,18 @@ export default function HeroSearch({ onSubmit }) {
             </div>
 
             {/* Voice button — FUNCTIONALITY UNCHANGED */}
-            <VoiceButton onResult={(t) => submit(t)} disabled={loading} />
+            <div className="shrink-0 scale-90 sm:scale-100 origin-right">
+              <VoiceButton onResult={(t) => submit(t)} disabled={loading} />
+            </div>
 
             {/* Chat button — FUNCTIONALITY UNCHANGED */}
             <button
               onClick={() => setChatOpen(true)}
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white transition hover:bg-gray-50"
+              className="grid h-9 w-9 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-full bg-white transition hover:bg-gray-50"
               style={{ border: "1px solid #E5E7EB" }}
               aria-label="Open chat"
             >
-              <MessageCircle size={16} style={{ color: "#6B7280" }} />
+              <MessageCircle size={14} className="sm:w-4 sm:h-4" style={{ color: "#6B7280" }} />
             </button>
 
             {/* Submit button — FUNCTIONALITY UNCHANGED */}
@@ -194,12 +196,12 @@ export default function HeroSearch({ onSubmit }) {
               onClick={() => submit()}
               disabled={loading || !text.trim()}
               aria-label="Search"
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-amazonYellow hover:bg-yellow-400 text-ink transition disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
+              className="grid h-9 w-9 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-full bg-amazonYellow hover:bg-yellow-400 text-ink transition disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
             >
               {loading ? (
-                <Loader2 size={18} className="animate-spin" />
+                <Loader2 size={16} className="animate-spin sm:w-[18px] sm:h-[18px]" />
               ) : (
-                <ArrowRight size={18} />
+                <ArrowRight size={16} className="sm:w-[18px] sm:h-[18px]" />
               )}
             </button>
           </div>
