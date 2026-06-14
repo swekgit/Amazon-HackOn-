@@ -22,8 +22,13 @@ const cardVariants = {
   }),
 };
 
-export default function MissionCards() {
+export default function MissionCards({ onMomentSelect }) {
   const { send, loading } = useApp();
+
+  const handleSelect = (mi) => {
+    onMomentSelect?.(mi.label);
+    send(mi.intent);
+  };
 
   return (
     <div>
@@ -32,7 +37,7 @@ export default function MissionCards() {
         <h2 className="font-display text-lg sm:text-xl font-bold text-ink">What's your moment?</h2>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-3">
+      <div className="grid grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-3">
         {MISSIONS.map((mi, i) => {
           const visual = MISSION_VISUALS[mi.label] || { iconBg: "bg-gray-50", borderAccent: "border-gray-200" };
           return (
@@ -45,7 +50,7 @@ export default function MissionCards() {
               viewport={{ once: true }}
               whileHover={{ y: -4, scale: 1.02 }}
               whileTap={{ scale: 0.97 }}
-              onClick={() => send(mi.intent)}
+              onClick={() => handleSelect(mi)}
               disabled={loading}
               className={`relative overflow-hidden rounded-xl bg-white p-4 text-left transition-shadow disabled:opacity-50
                 border ${visual.borderAccent}

@@ -84,7 +84,7 @@ export default function OfferBanners() {
         </div>
       </div>
 
-      <div ref={scrollRef} className="flex gap-3 overflow-x-auto no-scrollbar pb-3 snap-x-mandatory">
+      <div ref={scrollRef} className="grid grid-cols-1 min-[360px]:grid-cols-2 lg:flex gap-3 lg:overflow-x-auto no-scrollbar pb-3 snap-x-mandatory">
         {OFFERS.map((offer, i) => (
           <motion.div
             key={offer.title}
@@ -93,7 +93,7 @@ export default function OfferBanners() {
             transition={{ delay: i * 0.07, duration: 0.4 }}
             viewport={{ once: true }}
             whileHover={{ scale: 1.02, y: -2 }}
-            className={`shrink-0 w-[280px] rounded-xl ${offer.bgColor} p-5 cursor-pointer
+            className={`shrink-0 w-full lg:w-[280px] rounded-xl ${offer.bgColor} p-5 cursor-pointer
               border-l-4 ${offer.accentColor}
               shadow-sm hover:shadow-md transition-all relative overflow-hidden ring-1 ring-border`}
           >

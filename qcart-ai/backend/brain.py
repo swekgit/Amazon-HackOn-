@@ -4,57 +4,115 @@ One conversational turn: given the current cart and the user's new message,
 return an updated cart + a short reply + context/urgency classification.
 First turn (empty cart) = build from scratch. Later turns = refine.
 
-Caching: the catalog + the user's history are the same on every request, so we
-mark that block with cache_control. Anthropic then caches that prefix and only
-re-processes the small dynamic part (cart + message) — cheaper and faster across
-a session. (The cached block needs to be reasonably large to take effect; our
-catalog clears that comfortably.)
+Now powered by AWS Bedrock via model_router with multi-model fallback:
+  - Nova Lite: intent classification, scoring, lightweight tasks
+  - Llama 70B / Nova Pro: cart generation, structured JSON
 """
 
 import json
 import os
+import re
 
-from anthropic import Anthropic
+from dotenv import load_dotenv
+
+load_dotenv()
 
 import catalog
+from model_router import invoke_json, invoke, Task, get_model_info
 
-MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-6")
-client = Anthropic()
+# Expose model info for health endpoint
+MODEL = get_model_info(Task.CART_GENERATION)["model_id"]
 
-INSTRUCTIONS = """You are the brain of a MOMENT-AWARE quick-commerce app (10-min delivery).
-The user tells you a moment or need in plain language ("movie night for 4",
-"I have fever", "party for 6", "this week's groceries") OR asks to change the
-current cart ("make it cheaper", "remove dairy", "add something for the kids").
+INSTRUCTIONS = """You are a quick-commerce cart AI. Respond with ONLY valid JSON.
 
-You receive: the current cart, the user's new message, the product CATALOG, and
-the user's recent ORDER HISTORY / preferences.
+CONTEXT CLASSIFICATION (case-insensitive, first match wins):
+"movie night"→movie_night | "party"→party | "fever"/"sick"/"cold"→health
+"baby"/"newborn"/"infant"→baby | "groceries"/"restock"→routine
+"late night"/"midnight"→late_night | else→other
+On refinement commands, keep previous context.
+
+URGENCY: health/baby→"high", all others→"normal". Only these two values.
+
+CART CONSTRUCTION (empty cart or new scenario):
+Tag rules: movie_night→"movie"/"snack", party→"party", health→"fever"/"medicine"
+baby→"baby"/"newparent", routine→"weekly"/"staple", late_night→"snack"/"instant"
+other→sensible mix. Cart size: 3–10 items. Suggest 1–2 extras not in cart.
+Quantity: default 1. For N people: ceil(N/2), min 1, max 6.
+ONLY use product_id from CATALOG.
+
+REFINEMENTS (modify current cart, preserve context):
+"make it cheaper": swap each item to "cheap"-tagged in same category if exists,
+  else keep unchanged. Preserve quantities. Total MUST decrease.
+  No alternatives found → return unchanged, explain in reply.
+"make it premium": swap each item to "premium"-tagged in same category if exists,
+  else keep unchanged. Preserve quantities. Total MUST increase.
+  Empty cart → reply no cart to upgrade.
+"remove dairy": drop all "dairy"-tagged items. Keep rest unchanged.
+  No dairy → unchanged, explain. All dairy → empty cart.
+"for N people" (N=1–20): keep same items, set qty=ceil(N/2), min 1, max 6.
+  Invalid N → unchanged, explain range. Empty cart → explain.
+
+  
+  GOAL ESSENTIALS CHECKLIST (READINESS):
+For goal-oriented contexts (party, movie_night, health, baby, routine, late_night):
+Return the COMPLETE checklist of essentials required for the goal.
+
+Return:
+"readiness": {
+  "label":"<short label>",
+  "essentials":[
+    {
+      "product_id":"<catalog id>",
+      "reason":"<max 8 words>"
+    }
+  ]
+}
 
 Rules:
-- Build or update the cart to fit the message. If the cart is empty, build it fresh.
-- ONLY use product ids that exist in the catalog. Never invent ids.
-- Use the history to personalise (respect diet, favour items they reorder), but
-  only when relevant to the current moment.
-- Set realistic quantities from the number of people / context.
-- Respect refinements precisely: "cheaper" -> swap to lower-price picks; "premium"
-  -> upgrade; "remove X" -> drop it; "more people" -> scale quantities.
-- Classify the moment:
-    context  = one of: movie_night, party, health, baby, routine, late_night, other
-    urgency  = "high" for health/emergency/late-night essentials, else "normal"
-- Also suggest 1-2 complementary items NOT already in the cart (the copilot touch).
+- essentials = the FULL checklist for the goal (items in cart + commonly forgotten items)
+- Include BOTH items already present in the cart AND important items not yet in cart
+- All product_ids MUST exist in catalog
+- Return 4–7 essentials, no duplicates
+- For vague/generic requests: essentials []
+- Examples:
+  movie_night: popcorn, chips, soft drinks, chocolates, tissues
+  party: drinks, snacks, cups, napkins, ice
+  health: medicine, thermometer, ORS, sanitizer, tissues
 
-Respond with ONLY valid JSON, no markdown, exactly this shape:
+
+OUTPUT (ONLY this JSON, no markdown, no other text):
 {
-  "reply": "one short friendly sentence about what you did",
-  "context": "movie_night",
-  "urgency": "normal",
-  "cart": [ { "product_id": "p001", "quantity": 2, "reason": "max 6 words" } ],
-  "suggestions": [ { "product_id": "p005", "reason": "max 6 words" } ]
+  "reply":"<short sentence>",
+  "context":"<context>",
+  "urgency":"high|normal",
+  "cart":[
+    {
+      "product_id":"<id>",
+      "quantity":1,
+      "reason":"..."
+    }
+  ],
+  "suggestions":[
+    {
+      "product_id":"<id>",
+      "reason":"..."
+    }
+  ],
+  "readiness":{
+    "label":"...",
+    "essentials":[
+      {
+        "product_id":"...",
+        "reason":"..."
+      }
+    ]
+  }
 }"""
 
 
-def _context_block() -> str:
+def _context_block(message: str) -> str:
     return (
-        f"CATALOG (choose product_id only from here):\n{catalog.compact_catalog()}\n\n"
+        f"CATALOG (choose product_id only from here):\n{catalog.retrieve(message)}\n\n"
         f"USER HISTORY / PREFERENCES:\n{catalog.history_summary()}"
     )
 
@@ -66,24 +124,133 @@ def think(message: str, cart: list) -> dict:
         for i in cart
     ]
 
-    resp = client.messages.create(
-        model=MODEL,
-        max_tokens=1200,
-        system=[
-            {"type": "text", "text": INSTRUCTIONS},
-            # cached prefix: catalog + history (same every call)
-            {"type": "text", "text": _context_block(),
-             "cache_control": {"type": "ephemeral"}},
-        ],
-        messages=[{
-            "role": "user",
-            "content": (
-                f"CURRENT CART: {json.dumps(cart_state)}\n"
-                f"USER MESSAGE: {message}"
-            ),
-        }],
-    )
+    prompt = f"""
+{INSTRUCTIONS}
 
-    raw = "".join(b.text for b in resp.content if b.type == "text").strip()
-    raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-    return json.loads(raw)
+{_context_block(message)}
+
+CURRENT CART:
+{json.dumps(cart_state)}
+
+USER MESSAGE:
+{message}
+
+RESPOND WITH ONLY VALID JSON — no markdown, no explanation.
+
+{{
+  "reply":"...",
+  "context":"...",
+  "urgency":"...",
+  "cart":[
+    {{
+      "product_id":"...",
+      "quantity":1,
+      "reason":"..."
+    }}
+  ],
+  "suggestions":[
+    {{
+      "product_id":"...",
+      "reason":"..."
+    }}
+  ],
+  "readiness":{{
+    "label":"...",
+    "essentials":[
+      {{
+        "product_id":"...",
+        "reason":"..."
+      }}
+    ]
+  }}
+}}
+"""
+
+    # Route to Bedrock: cart generation uses Llama/Nova Pro, with fallback
+    messages = [
+        {"role": "user", "content": [{"text": prompt}]}
+    ]
+
+    result = invoke_json(Task.CART_GENERATION, messages, temperature=0.2)
+    return result["parsed"]
+
+
+def recommend_for_you(tags, candidate_products):
+
+    recommended = []
+
+    for p in candidate_products[:5]:
+        recommended.append({
+            "product_id": p["id"],
+            "reason": "Based on your interests"
+        })
+
+    deals = []
+
+    for p in candidate_products:
+        if "offer" in p:
+            deals.append(
+                {
+                    "product_id": p["id"],
+                    "pitch": pitch_for_product(
+                        p,
+                        tags,
+                        p["offer"]["discount_pct"]
+                    ),
+                }
+            )
+
+    return {
+        "recommended": recommended[:5],
+        "deals": deals[:3]
+    }
+
+
+def personalize_copy(
+    tags: list[str],
+    recommended_products: list[dict],
+    deal_products: list[dict],
+) -> dict:
+
+    payload = {
+        "customer_tags": tags,
+        "recommended": recommended_products,
+        "deals": deal_products,
+    }
+
+    prompt = f"""
+Return ONLY valid JSON.
+
+Customer:
+{json.dumps(payload)}
+
+Rules:
+- reasons <= 8 words
+- pitches <= 10 words
+- Use only supplied ids
+- Mention only supplied discounts
+- No markdown
+
+Output:
+
+{{
+  "reasons": {{
+    "product_id": "reason"
+  }},
+  "pitches": {{
+    "product_id": "pitch"
+  }}
+}}
+"""
+
+    try:
+        messages = [
+            {"role": "user", "content": [{"text": prompt}]}
+        ]
+        result = invoke_json(Task.INTENT_CLASSIFICATION, messages, temperature=0.2, max_tokens=600)
+        return result["parsed"]
+    except Exception:
+        return {
+            "reasons": {},
+            "pitches": {},
+        }

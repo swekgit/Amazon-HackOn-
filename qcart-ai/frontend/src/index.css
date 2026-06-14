@@ -1,24 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
   --theme-gradient-from: #FFFFFF;
-  --theme-gradient-to: #F7F8FA;
-  --theme-accent: #FF9900;
-  --theme-accent-soft: #FFF4E0;
-  --theme-text: #111111;
-  --theme-surface: rgba(255, 255, 255, 0.95);
-  --theme-glow: rgba(255, 153, 0, 0.15);
+  --theme-gradient-to: #FAFAF7;
+
+  --theme-accent: #FF7A1A;
+  --theme-accent-soft: #FFE7D3;
+
+  --theme-text: #17161B;
+  --theme-muted: #6E6B76;
+
+  --theme-surface: rgba(255,255,255,0.95);
+  --theme-line: #ECEAE6;
+
+  --theme-glow: rgba(255,122,26,0.15);
 }
 
 html { -webkit-font-smoothing: antialiased; }
 
 body {
   margin: 0;
-  background: #FFFFFF;
-  color: var(--theme-text);
-  font-family: theme("fontFamily.sans");
+  background: #FAFAF7;
+  color: #17161B;
+  font-family: "Inter", system-ui, sans-serif;
   transition: background 0.8s cubic-bezier(0.4, 0, 0.2, 1),
               color 0.5s ease;
   min-height: 100vh;
@@ -83,5 +91,75 @@ body {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+  }
+}
+
+/* ── Segmented Toggle (For You / Cart Assistant) ───────────── */
+.segmented-toggle-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 16px 16px 4px;
+  position: relative;
+  z-index: 15;
+}
+
+.segmented-toggle {
+  display: inline-flex;
+  background: #F3F4F6;
+  border-radius: 9999px;
+  padding: 4px;
+  gap: 2px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.segmented-toggle__tab {
+  position: relative;
+  padding: 10px 28px;
+  border-radius: 9999px;
+  border: none;
+  cursor: pointer;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #6B7280;
+  background: transparent;
+  transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  white-space: nowrap;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.segmented-toggle__tab:hover:not(.segmented-toggle__tab--active) {
+  color: #374151;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.segmented-toggle__tab--active {
+  background: #F97316;
+  color: #FFFFFF;
+  box-shadow:
+    0 2px 8px rgba(249, 115, 22, 0.3),
+    0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.segmented-toggle__tab--active:hover {
+  background: #EA580C;
+}
+
+/* Responsive sizing */
+@media (max-width: 480px) {
+  .segmented-toggle-wrapper {
+    padding: 16px 12px 4px;
+  }
+  .segmented-toggle {
+    width: 100%;
+    display: flex;
+  }
+  .segmented-toggle__tab {
+    flex: 1;
+    padding: 8px 16px;
+    font-size: 13px;
+    text-align: center;
   }
 }

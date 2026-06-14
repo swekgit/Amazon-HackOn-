@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useMemo, useCallback } from "react";
-import { sendTurn } from "../api/client.js";
+import { createContext, useContext, useState, useMemo, useCallback, useEffect } from "react";
+import { sendTurn, fetchCities, fetchTrending } from "../api/client.js";
 import { useTheme } from "./useTheme.js";
 import { ORDER_HISTORY } from "../data/orders.js";
 
@@ -9,17 +9,24 @@ export function AppProvider({ children }) {
   const [messages, setMessages] = useState([]);
   const [cart, setCart] = useState([]);
   const [meta, setMeta] = useState({
-    context: "routine",
-    urgency: "normal",
-    threshold: 199,
-    gapFillers: [],
-    suggestions: [],
-    buildTime: null,
-  });
+  context: "routine",
+  urgency: "normal",
+  threshold: 199,
+  gapFillers: [],
+  suggestions: [],
+  readiness: null,
+  buildTime: null,
+});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [cartOpen, setCartOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+
+  // ── City & Trending state ──────────────────────────────────────────────────
+  const [city, setCityRaw] = useState("Bangalore");
+  const [cities, setCities] = useState([]);
+  const [trendingProducts, setTrendingProducts] = useState([]);
+  const [trendingLoading, setTrendingLoading] = useState(false);
 
   const themeState = useTheme();
 
@@ -28,6 +35,40 @@ export function AppProvider({ children }) {
     [cart]
   );
   const gapAmount = Math.max(0, meta.threshold - subtotal);
+
+  const readiness = useMemo(() => {
+  const raw = meta.readiness;
+
+  if (!raw?.essentials?.length) {
+    return null;
+  }
+
+  const cartIds = new Set(
+    cart.map((item) => item.id)
+  );
+
+  const present = raw.essentials.filter((e) =>
+    cartIds.has(e.id)
+  );
+
+  const missing = raw.essentials.filter((e) =>
+    !cartIds.has(e.id)
+  );
+
+  const score = Math.round(
+    (present.length / raw.essentials.length) * 100
+  );
+
+  return {
+    label: raw.label,
+    essentials: raw.essentials,
+    present,
+    missing,
+    score,
+    complete:
+      present.length === raw.essentials.length,
+  };
+}, [meta.readiness, cart]);
 
   const send = useCallback(
     async (text) => {
@@ -49,6 +90,7 @@ export function AppProvider({ children }) {
           threshold: res.free_delivery_threshold,
           gapFillers: res.gap_fillers || [],
           suggestions: res.suggestions || [],
+          readiness: res.readiness || null,
           buildTime,
         });
         setMessages((m) => [...m, { role: "assistant", text: res.reply }]);
@@ -69,8 +111,8 @@ export function AppProvider({ children }) {
         qty <= 0
           ? c.filter((i) => i.id !== id)
           : c.map((i) =>
-              i.id === id ? { ...i, quantity: qty, line_total: i.price * qty } : i
-            )
+            i.id === id ? { ...i, quantity: qty, line_total: i.price * qty } : i
+          )
       ),
     []
   );
@@ -79,6 +121,20 @@ export function AppProvider({ children }) {
     (id) => setCart((c) => c.filter((i) => i.id !== id)),
     []
   );
+const swapItem = useCallback((oldId, newProduct) => {
+  setCart((current) =>
+    current.map((item) => {
+      if (item.id !== oldId) return item;
+
+      return {
+        ...newProduct,
+        quantity: item.quantity,
+        reason: newProduct.reason || item.reason || "",
+        line_total: newProduct.price * item.quantity,
+      };
+    })
+  );
+}, []);
 
   const addProduct = useCallback(
     (p) =>
@@ -90,7 +146,51 @@ export function AppProvider({ children }) {
     []
   );
 
-  const clearCart = useCallback(() => setCart([]), []);
+  const clearCart = useCallback(() => {
+    setCart([]);
+    setMeta((prev) => ({ ...prev, suggestions: [], gapFillers: [] }));
+  }, []);
+
+  // ── City selection & trending fetch ─────────────────────────────────────────
+
+ const loadTrending = useCallback(async (targetCity) => {
+  console.log("loadTrending fired:", targetCity);
+
+  setTrendingLoading(true);
+
+  try {
+    const data = await fetchTrending(targetCity);
+
+    console.log("fetchTrending returned:", data);
+
+    setTrendingProducts(data.products || []);
+  } catch (e) {
+    console.error("TRENDING ERROR:", e);
+
+    setTrendingProducts([]);
+  } finally {
+    setTrendingLoading(false);
+  }
+}, []);
+
+  const setCity = useCallback((newCity) => {
+  console.log("CITY CLICKED:", newCity);
+
+  setCityRaw(newCity);
+
+  console.log("CALLING loadTrending:", newCity);
+
+  loadTrending(newCity);
+}, [loadTrending]);
+
+  // Load cities list + initial trending on mount
+  useEffect(() => {
+    fetchCities()
+      .then((data) => setCities(data.cities || []))
+      .catch(() => setCities(["Bangalore"]));
+    loadTrending(city);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -99,6 +199,7 @@ export function AppProvider({ children }) {
       addProduct,
       removeItem,
       setQty,
+      swapItem,
       subtotal,
       clearCart,
       hasCart: cart.length > 0,
@@ -119,14 +220,22 @@ export function AppProvider({ children }) {
       setChatOpen,
       // Meta
       meta,
+      readiness,
       gapAmount,
       // Data
       orderHistory: ORDER_HISTORY,
+      // City & Trending
+      city,
+      cities,
+      setCity,
+      trendingProducts,
+      trendingLoading,
     }),
     [
-      cart, addProduct, removeItem, setQty, subtotal, clearCart,
+      cart, addProduct, removeItem, setQty,swapItem, subtotal, clearCart,
       messages, send, loading, error,
       themeState, cartOpen, chatOpen, meta, gapAmount,
+      city, cities, setCity, trendingProducts, trendingLoading,
     ]
   );
 
