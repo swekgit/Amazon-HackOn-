@@ -454,5 +454,26 @@
     "swap_group": "pizza",
     "price": 399,
     "tags": ["party","movie","premium"]
+  },
+  {
+    "id": "p101",
+    "name": "Sanitary Pads (Pack of 10)",
+    "category": "health",
+    "price": 40,
+    "tags": ["health","period","women","monthly"]
+  },
+  {
+    "id": "p102",
+    "name": "Painkiller (Ibuprofen 200mg, 10 tabs)",
+    "category": "health",
+    "price": 30,
+    "tags": ["health","pain","period","medicine"]
+  },
+  {
+    "id": "p103",
+    "name": "Hot Water Bag",
+    "category": "health",
+    "price": 199,
+    "tags": ["health","comfort","period","pain"]
   }
 ]

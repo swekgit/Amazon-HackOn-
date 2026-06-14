@@ -27,6 +27,7 @@ if MONGODB_URI:
     customers = _db["customers"]
     customer_tags = _db["customer_tags"]
     offers = _db["offers"]
+    customer_cycles = _db["customer_cycles"]
 else:
     # Graceful degradation: if no Mongo URI, expose None collections
     # This allows the existing backend to run without Mongo configured
@@ -36,6 +37,7 @@ else:
     customers = None
     customer_tags = None
     offers = None
+    customer_cycles = None
 
 
 def is_connected() -> bool:
