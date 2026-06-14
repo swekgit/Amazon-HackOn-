@@ -11,8 +11,7 @@ Flow per turn:
 
 import json
 import logging
-from datetime import datetime, timezone
-
+from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -101,56 +100,7 @@ def trending_products(city: str = DEFAULT_CITY):
     log.info("Returning %d trending products for %s", len(products), resolved_city)
     return {"city": resolved_city, "products": products}
 
-# def build_alternatives(product):
 
-#     category = product.get("category")
-
-#     cheaper = None
-#     premium = None
-
-#     for candidate in catalog.CATALOG:
-
-#         if candidate["id"] == product["id"]:
-#             continue
-
-#         if candidate.get("category") != category:
-#             continue
-
-#         current_tags = set(product.get("tags", []))
-#         candidate_tags = set(candidate.get("tags", []))
-
-#         if not current_tags.intersection(candidate_tags):
-#             continue
-
-#         if current_tags != candidate_tags:
-#             continue
-
-#         if candidate["price"] < product["price"]:
-#             if (
-#                 cheaper is None
-#                 or candidate["price"] > cheaper["price"]
-#             ):
-#                 cheaper = {
-#                     "id": candidate["id"],
-#                     "name": candidate["name"],
-#                     "price": candidate["price"]
-#                 }
-
-#         if candidate["price"] > product["price"]:
-#             if (
-#                 premium is None
-#                 or candidate["price"] < premium["price"]
-#             ):
-#                 premium = {
-#                     "id": candidate["id"],
-#                     "name": candidate["name"],
-#                     "price": candidate["price"]
-#                 }
-
-#     return {
-#         "cheaper": cheaper,
-#         "premium": premium
-#     }
 
 
 # ── Conversational cart ────────────────────────────────────────────────────────
@@ -461,6 +411,103 @@ def for_you(customer_id: str):
         "deals": deals,
     }
 
+@app.get("/api/predicted")
+def predicted_reorders(customer_id: str):
+
+    if db.customer_cycles is None:
+        raise HTTPException(503, "MongoDB not configured.")
+
+    cycles = list(
+        db.customer_cycles.find(
+            {"customer_id": customer_id},
+            {"_id": 0}
+        )
+    )
+
+    if not cycles:
+        return {"predictions": []}
+
+    today = datetime.now(timezone.utc).date()
+
+    predictions = []
+
+    for cycle in cycles:
+
+        last_purchase_raw = cycle.get("last_purchase")
+
+        if not last_purchase_raw:
+            continue
+
+        try:
+            last_purchase = (
+                datetime.fromisoformat(
+                    last_purchase_raw.replace("Z", "+00:00")
+                ).date()
+            )
+        except Exception:
+            continue
+
+        interval_days = int(
+            cycle.get("interval_days", 0)
+        )
+
+        if interval_days <= 0:
+            continue
+
+        next_date = last_purchase + timedelta(
+            days=interval_days
+        )
+
+        days_until = (
+            next_date - today
+        ).days
+
+        if days_until > 3:
+            continue
+
+        cart = []
+        subtotal = 0
+
+        for product_id in cycle.get("item_ids", []):
+
+            product = catalog.get(product_id)
+
+            if not product:
+                continue
+
+            cart.append(
+                {
+                    "id": product["id"],
+                    "name": product["name"],
+                    "price": product["price"],
+                    "quantity": 1,
+                }
+            )
+
+            subtotal += product["price"]
+
+        if not cart:
+            continue
+
+        predictions.append(
+            {
+                "label": cycle.get("label", ""),
+                "private": cycle.get("private", False),
+                "due_in_days": days_until,
+                "interval_days": interval_days,
+                "reason": f"you usually reorder every {interval_days} days",
+                "cart": cart,
+                "subtotal": subtotal,
+            }
+        )
+
+    predictions.sort(
+        key=lambda p: p["due_in_days"]
+    )
+
+    return {
+        "predictions": predictions
+    }
 
 def _score_product(product: dict, tags: list[str]) -> int:
     score = 0
