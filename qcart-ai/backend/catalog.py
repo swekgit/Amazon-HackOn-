@@ -137,9 +137,15 @@ def get(product_id: str):
 def compact_catalog() -> str:
     """Catalog as a compact JSON string for the prompt (id/name/category/price/tags)."""
     rows = [
-        {"id": p["id"], "name": p["name"], "category": p["category"],
-         "price": p["price"], "tags": p["tags"]}
-        for p in CATALOG
+        {
+            "id": p["id"],
+            "name": p["name"],
+            "category": p["category"],
+            "swap_group": p.get("swap_group"),
+            "price": p["price"],
+            "tags": p["tags"]
+        }
+        for p in results
     ]
     return json.dumps(rows, separators=(",", ":"))
 
@@ -169,15 +175,10 @@ def enrich(product_id: str, quantity: int, reason: str = "") -> dict | None:
     }
 
 def find_alternatives(product_id: str, cart_ids: set[str]) -> dict:
-    """
-    Returns:
-    {
-        "cheaper": {id,name,price} | None,
-        "premium": {id,name,price} | None
-    }
-    """
 
     current = BY_ID.get(product_id)
+    print("CURRENT =", current)
+    print("SWAP =", current.get("swap_group") if current else None)
 
     if not current:
         return {
@@ -185,25 +186,32 @@ def find_alternatives(product_id: str, cart_ids: set[str]) -> dict:
             "premium": None,
         }
 
-    category = current["category"]
-    price = current["price"]
+    swap_group = current.get("swap_group")
+
+    if not swap_group:
+        return {
+            "cheaper": None,
+            "premium": None,
+        }
+
+    current_price = current["price"]
 
     candidates = [
         p
         for p in CATALOG
-        if p["category"] == category
+        if p.get("swap_group") == swap_group
         and p["id"] != product_id
         and p["id"] not in cart_ids
     ]
 
     cheaper_candidates = [
         p for p in candidates
-        if p["price"] < price
+        if p["price"] < current_price
     ]
 
     premium_candidates = [
         p for p in candidates
-        if p["price"] > price
+        if p["price"] > current_price
     ]
 
     cheaper = None
@@ -214,6 +222,7 @@ def find_alternatives(product_id: str, cart_ids: set[str]) -> dict:
             cheaper_candidates,
             key=lambda p: p["price"]
         )
+
         cheaper = {
             "id": best["id"],
             "name": best["name"],
@@ -225,6 +234,7 @@ def find_alternatives(product_id: str, cart_ids: set[str]) -> dict:
             premium_candidates,
             key=lambda p: p["price"]
         )
+
         premium = {
             "id": best["id"],
             "name": best["name"],
