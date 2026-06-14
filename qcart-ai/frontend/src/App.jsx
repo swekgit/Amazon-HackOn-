@@ -1,4 +1,3 @@
-import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "./components/Header.jsx";
 import HeroSearch from "./components/HeroSearch.jsx";
@@ -16,8 +15,6 @@ import { useApp } from "./state/AppContext.jsx";
 import { useState } from "react";
 import ForYou from "./components/ForYou";
 
-
-
 const sectionVariants = {
   hidden: { opacity: 0, y: 30 },
   visible: {
@@ -27,135 +24,82 @@ const sectionVariants = {
   },
 };
 
-const staggerContainer = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.12,
-      delayChildren: 0.1,
-    },
-  },
-};
-
 export default function App() {
   const [activeTab, setActiveTab] = useState("foryou");
   const { cartOpen, chatOpen } = useApp();
 
   return (
-    <div className="min-h-screen relative bg-white text-gray-900 overflow-x-hidden">
-      {/* Rain effect overlay for rainy theme */}
+    <div className="min-h-screen relative bg-canvas text-ink overflow-x-hidden">
       <RainEffect />
-
-      {/* Sticky header */}
       <Header />
 
-      {/* Main content */}
       <main className="relative z-10">
-        {/* Hero search — the star of the show */}
+        {/* Hero search — always visible */}
         <HeroSearch />
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-  <div className="flex rounded-2xl bg-white p-1 ring-1 ring-black/5 shadow-sm">
-    <button
-      onClick={() => setActiveTab("foryou")}
-      className={`flex-1 rounded-xl px-4 py-3 text-sm font-medium transition ${
-        activeTab === "foryou"
-          ? "bg-smart text-white"
-          : "text-gray-600"
-      }`}
-    >
-      For You
-    </button>
+        {/* Tabs */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+          <div className="flex rounded-2xl bg-white p-1 ring-1 ring-line shadow-sm">
+            <button
+              onClick={() => setActiveTab("foryou")}
+              className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+                activeTab === "foryou"
+                  ? "bg-brand text-white shadow-sm"
+                  : "text-muted hover:text-ink"
+              }`}
+            >
+              For You
+            </button>
+            <button
+              onClick={() => setActiveTab("assistant")}
+              className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+                activeTab === "assistant"
+                  ? "bg-brand text-white shadow-sm"
+                  : "text-muted hover:text-ink"
+              }`}
+            >
+              Cart Assistant
+            </button>
+          </div>
+        </div>
 
-    <button
-      onClick={() => setActiveTab("home")}
-      className={`flex-1 rounded-xl px-4 py-3 text-sm font-medium transition ${
-        activeTab === "home"
-          ? "bg-smart text-white"
-          : "text-gray-600"
-      }`}
-    >
-      Cart Assistant
-    </button>
-  </div>
-</div>
-{activeTab === "foryou" ? (
-  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <ForYou />
-  </div>
-) : (
-  <>
+        {/* Tab content — explicit matching */}
+        {activeTab === "foryou" && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <ForYou />
+          </div>
+        )}
 
-        {/* Mission Cards — quick moment selection */}
-        <motion.section
-          variants={sectionVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-50px" }}
-          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6"
-        >
-          <MissionCards />
+        {activeTab === "assistant" && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-4 md:space-y-6">
+            <motion.section variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }}>
+              <MissionCards />
+            </motion.section>
 
-        </motion.section>
+            <motion.section variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }}>
+              <BuyAgainNow />
+            </motion.section>
 
-        {/* Buy Again — order history */}
-        <motion.section
-          variants={sectionVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-50px" }}
-          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6"
-        >
-          <BuyAgainNow />
-        </motion.section>
+            <motion.section variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }}>
+              <OfferBanners />
+            </motion.section>
 
-        {/* Offers carousel */}
-        <motion.section
-          variants={sectionVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-50px" }}
-          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6"
-        >
-          <OfferBanners />
-        </motion.section>
+            <motion.section variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }}>
+              <AIRecommendations />
+            </motion.section>
 
-        {/* AI Recommendations */}
-        <motion.section
-          variants={sectionVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-50px" }}
-          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6"
-        >
-          <AIRecommendations />
-        </motion.section>
-
-        {/* Trending Moments */}
-        <motion.section
-          variants={sectionVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-50px" }}
-          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6"
-        >
-          <TrendingMoments />
-        </motion.section>
-          </>
-)}
+            <motion.section variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }}>
+              <TrendingMoments />
+            </motion.section>
+          </div>
+        )}
       </main>
 
-      {/* Footer */}
       <Footer />
 
-      {/* Cart drawer overlay */}
+      {/* Overlays */}
       <AnimatePresence>{cartOpen && <CartDrawer />}</AnimatePresence>
-
-      {/* Conversational AI panel overlay */}
       <AnimatePresence>{chatOpen && <ConversationalPanel />}</AnimatePresence>
-
-      {/* Floating copilot button */}
       <CopilotFAB />
     </div>
   );

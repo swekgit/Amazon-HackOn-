@@ -183,9 +183,8 @@ def cart_turn(turn: CartTurn):
     "cart": [],
     "suggestions": [],
     "readiness": {
-        "label": "Readiness",
-        "score": 100,
-        "missing": []
+        "label": "",
+        "essentials": []
     }
 }
     for key, default in FALLBACK_DEFAULTS.items():
@@ -252,40 +251,37 @@ def cart_turn(turn: CartTurn):
 
     raw_readiness = result.get("readiness", {})
 
-    readiness_missing = []
+    enriched_essentials = []
+    seen_ids = set()
 
-    for item in raw_readiness.get("missing", []):
-
+    for item in raw_readiness.get("essentials", []):
         product = catalog.get(item.get("product_id"))
 
         if not product:
             continue
 
-        if product["id"] in in_cart:
+        if product["id"] in seen_ids:
             continue
 
-        readiness_missing.append({
+        seen_ids.add(product["id"])
+
+        enriched_essentials.append({
             "id": product["id"],
             "name": product["name"],
             "price": product["price"],
             "reason": item.get("reason", "")
         })
 
-    label = raw_readiness.get("label")
+    enriched_essentials = enriched_essentials[:7]
 
-    if not label or label.lower() == context.lower():
+    label = raw_readiness.get("label", "")
+
+    if not label and enriched_essentials:
         label = f"{context.replace('_', ' ').title()} readiness"
 
     readiness = {
         "label": label,
-        "score": max(
-            0,
-            min(
-                100,
-                int(raw_readiness.get("score", 100))
-            )
-        ),
-        "missing": readiness_missing[:3]
+        "essentials": enriched_essentials
     }
     context = result["context"]
     subtotal = sum(l["line_total"] for l in cart_lines)
