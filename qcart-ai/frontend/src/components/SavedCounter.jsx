@@ -1,17 +1,30 @@
-import { Clock } from "lucide-react";
+import { motion } from "framer-motion";
+import { Zap, Clock } from "lucide-react";
+import { useApp } from "../state/AppContext.jsx";
 import { savings } from "../lib/format.js";
 
-// The "proof" metric: how much friction this cart just removed.
-export default function SavedCounter({ cart }) {
+export default function SavedCounter() {
+  const { cart, meta } = useApp();
   if (!cart || cart.length === 0) return null;
-  const { minutes, taps } = savings(cart);
+  const { minutes } = savings(cart);
 
   return (
-    <div className="flex items-center gap-2 rounded-2xl bg-smart-soft px-4 py-2.5 text-sm text-smart-dark animate-fade-up">
-      <Clock size={16} />
-      <span>
-        Built in seconds — saved you about <b>{minutes} min</b> and <b>{taps} taps</b>.
-      </span>
-    </div>
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="inline-flex items-center gap-2 rounded-full bg-smart-soft px-4 py-2 text-xs font-medium text-smart-dark"
+    >
+      {meta.buildTime ? (
+        <>
+          <Zap size={13} />
+          <span>Cart built in <b>{meta.buildTime}s</b></span>
+        </>
+      ) : (
+        <>
+          <Clock size={13} />
+          <span>Saved ~<b>{minutes} min</b></span>
+        </>
+      )}
+    </motion.div>
   );
 }

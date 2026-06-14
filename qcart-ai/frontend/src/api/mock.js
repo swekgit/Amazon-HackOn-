@@ -1,65 +1,235 @@
-// Mock that mirrors the real /api/cart contract. Lets Dev 2 & Dev 3 build the
-// whole UI before the backend is wired. Crude keyword matching is fine here.
-const line = (id, name, price, quantity, reason) => ({
-  id, name, price, quantity, reason, line_total: price * quantity,
-});
+import { PRODUCTS, getProductById, getProductsByTags } from "../data/products.js";
 
-function build(message) {
+const line = (id, qty, reason) => {
+  const p = getProductById(id);
+  if (!p) return null;
+  return { id: p.id, name: p.name, price: p.price, category: p.category, tags: p.tags, quantity: qty, reason, line_total: p.price * qty };
+};
+
+const pick = (ids, reasons) =>
+  ids.map((id, i) => line(id, 1, reasons[i] || "")).filter(Boolean);
+
+function buildCart(message) {
   const m = message.toLowerCase();
 
-  if (m.includes("fever") || m.includes("sick") || m.includes("emergency")) {
+  if (m.includes("fever") || m.includes("sick") || m.includes("unwell") || m.includes("cold medicine")) {
     return {
-      reply: "Sorry you're unwell — here are the essentials.",
+      reply: "I'm sorry you're not feeling well. Here are essentials to help you recover fast. 💊",
       context: "health", urgency: "high",
       cart: [
-        line("p040", "Paracetamol 500mg (Strip of 10)", 30, 1, "for fever"),
-        line("p041", "ORS Hydration Powder (Pack of 5)", 95, 1, "stay hydrated"),
-        line("p046", "Tomato Soup (Instant, 2 packs)", 80, 1, "easy comfort food"),
-      ],
-      suggestions: [{ id: "p045", name: "Honey (250g)", price: 199, reason: "soothes throat" }],
+        line("p040", 1, "fever relief"), line("p041", 1, "stay hydrated"),
+        line("p046", 2, "comfort food"), line("p044", 1, "you'll need these"),
+        line("p045", 1, "soothes throat"), line("p035", 1, "immunity boost"),
+      ].filter(Boolean),
+      suggestions: [
+        { ...getProductById("p047"), reason: "immunity support" },
+        { ...getProductById("p043"), reason: "cough relief" },
+      ].filter(Boolean),
     };
   }
 
-  if (m.includes("snack") || m.includes("chips") || m.includes("cold drink")) {
+  if (m.includes("party") || m.includes("guests") || m.includes("hosting")) {
+    const people = parseInt(m.match(/(\d+)/)?.[1]) || 6;
     return {
-      reply: "Quick snack run, sorted.",
+      reply: `Party mode activated! Got everything for ${people} guests — snacks, drinks & more. 🎉`,
+      context: "party", urgency: "normal",
+      cart: [
+        line("p002", 2, "crowd favorite"), line("p003", 1, "perfect with nachos"),
+        line("p011", Math.ceil(people / 3), "one per group"), line("p012", Math.ceil(people / 3), "non-cola option"),
+        line("p060", Math.ceil(people / 4), "easy hot meal"), line("p065", 1, "garlic bread side"),
+        line("p061", 1, "easy cleanup"), line("p062", 1, "for drinks"),
+        line("p014", 1, "stay hydrated"),
+      ].filter(Boolean),
+      suggestions: [
+        { ...getProductById("p064"), reason: "celebration dessert" },
+        { ...getProductById("p009"), reason: "premium chocolate" },
+      ].filter(Boolean),
+    };
+  }
+
+  if (m.includes("movie") || m.includes("film") || m.includes("watch")) {
+    const people = parseInt(m.match(/(\d+)/)?.[1]) || 4;
+    return {
+      reply: `Movie night for ${people} — popcorn, drinks & treats! 🎬`,
+      context: "movie_night", urgency: "normal",
+      cart: [
+        line("p001", Math.ceil(people / 2), "movie staple"),
+        line("p002", 1, "to share"), line("p003", 1, "dip for nachos"),
+        line("p010", people, "one each"), line("p005", 1, "something sweet"),
+        line("p006", 1, "dessert time"),
+      ].filter(Boolean),
+      suggestions: [
+        { ...getProductById("p060"), reason: "frozen pizza break" },
+        { ...getProductById("p009"), reason: "premium upgrade" },
+      ].filter(Boolean),
+    };
+  }
+
+  if (m.includes("baby") || m.includes("toddler") || m.includes("newborn")) {
+    return {
+      reply: "Baby essentials packed and ready! 👶",
+      context: "baby", urgency: "normal",
+      cart: [
+        line("p050", 1, "daily essential"), line("p051", 1, "always needed"),
+        line("p053", 1, "meal time"), line("p052", 1, "gentle care"),
+        line("p054", 1, "bath time"),
+      ].filter(Boolean),
+      suggestions: [
+        { ...getProductById("p055"), reason: "feeding essential" },
+        { ...getProductById("p020"), reason: "for cereal mixing" },
+      ].filter(Boolean),
+    };
+  }
+
+  if (m.includes("breakfast") || m.includes("morning")) {
+    return {
+      reply: "Perfect morning spread coming right up! ☀️",
+      context: "routine", urgency: "normal",
+      cart: [
+        line("p020", 1, "fresh milk"), line("p021", 1, "toast ready"),
+        line("p022", 1, "protein boost"), line("p029", 1, "butter up"),
+        line("p015", 1, "morning caffeine"), line("p033", 1, "healthy start"),
+        line("p013", 1, "fresh juice"),
+      ].filter(Boolean),
+      suggestions: [
+        { ...getProductById("p045"), reason: "healthy sweetener" },
+        { ...getProductById("p034"), reason: "fruit boost" },
+      ].filter(Boolean),
+    };
+  }
+
+  if (m.includes("study") || m.includes("exam") || m.includes("focus")) {
+    return {
+      reply: "Brain fuel loaded — stay focused! 📚",
+      context: "routine", urgency: "normal",
+      cart: [
+        line("p015", 1, "stay alert"), line("p017", 1, "energy boost"),
+        line("p005", 1, "brain food"), line("p008", 1, "study snack"),
+        line("p033", 1, "healthy energy"),
+      ].filter(Boolean),
+      suggestions: [
+        { ...getProductById("p034"), reason: "brain health" },
+        { ...getProductById("p007"), reason: "protein snack" },
+      ].filter(Boolean),
+    };
+  }
+
+  if (m.includes("rain") || m.includes("monsoon")) {
+    return {
+      reply: "Rainy day comfort coming your way! 🌧️",
       context: "late_night", urgency: "normal",
       cart: [
-        line("p004", "Potato Chips Classic Salted (Large)", 50, 1, "classic"),
-        line("p010", "Cola Soft Drink (750ml)", 45, 1, "to go with it"),
-      ],
-      suggestions: [{ id: "p001", name: "Butter Popcorn", price: 65, reason: "movie staple" }],
+        line("p016", 1, "hot chai time"), line("p046", 1, "warm soup"),
+        line("p008", 1, "tea-time snack"), line("p005", 1, "chocolate comfort"),
+        line("p015", 1, "hot coffee"),
+      ].filter(Boolean),
+      suggestions: [
+        { ...getProductById("p045"), reason: "honey ginger tea" },
+        { ...getProductById("p036"), reason: "add to chai" },
+      ].filter(Boolean),
     };
   }
 
-  // default: movie night
+  if (m.includes("summer") || m.includes("hot") || m.includes("heat")) {
+    return {
+      reply: "Beat the heat with these cooling essentials! ☀️",
+      context: "routine", urgency: "normal",
+      cart: [
+        line("p006", 1, "frozen treat"), line("p010", 2, "cold & fizzy"),
+        line("p012", 2, "refreshing"), line("p013", 1, "fresh juice"),
+        line("p014", 1, "stay hydrated"),
+      ].filter(Boolean),
+      suggestions: [
+        { ...getProductById("p035"), reason: "nimbu pani" },
+        { ...getProductById("p033"), reason: "potassium boost" },
+      ].filter(Boolean),
+    };
+  }
+
+  if (m.includes("grocery") || m.includes("weekly") || m.includes("restock")) {
+    return {
+      reply: "Weekly grocery run sorted for your family of 3! 🛒",
+      context: "routine", urgency: "normal",
+      cart: [
+        line("p020", 2, "double for the week"), line("p021", 2, "daily bread"),
+        line("p022", 1, "breakfast protein"), line("p025", 1, "cooking oil"),
+        line("p030", 1, "kitchen staple"), line("p031", 1, "kitchen staple"),
+        line("p032", 1, "kitchen staple"), line("p029", 1, "toast & cooking"),
+        line("p026", 1, "sweetener"),
+      ].filter(Boolean),
+      suggestions: [
+        { ...getProductById("p027"), reason: "dal for the week" },
+        { ...getProductById("p033"), reason: "healthy snacking" },
+      ].filter(Boolean),
+    };
+  }
+
+  if (m.includes("snack") || m.includes("chips") || m.includes("hungry") || m.includes("craving") || m.includes("late night") || m.includes("midnight")) {
+    return {
+      reply: "Midnight munchies sorted! 🌙",
+      context: "late_night", urgency: "normal",
+      cart: [
+        line("p004", 1, "classic crunch"), line("p001", 1, "quick & easy"),
+        line("p010", 1, "to wash it down"), line("p005", 1, "sweet fix"),
+        line("p008", 1, "namkeen variety"),
+      ].filter(Boolean),
+      suggestions: [
+        { ...getProductById("p006"), reason: "ice cream upgrade" },
+        { ...getProductById("p002"), reason: "more crunch" },
+      ].filter(Boolean),
+    };
+  }
+
+  // Refinement commands
+  if (m.includes("premium") || m.includes("upgrade")) {
+    return {
+      reply: "Upgraded your cart to premium picks! ✨",
+      context: "movie_night", urgency: "normal",
+      cart: [
+        line("p009", 1, "premium chocolate"), line("p002", 2, "quality chips"),
+        line("p003", 1, "artisan dip"), line("p013", 2, "fresh juice"),
+        line("p006", 1, "premium dessert"),
+      ].filter(Boolean),
+      suggestions: [
+        { ...getProductById("p060"), reason: "gourmet pizza" },
+      ].filter(Boolean),
+    };
+  }
+
+  // Default: movie night
   return {
-    reply: "Movie night for 4 — snacks, drinks & something sweet.",
+    reply: "Here's what I picked for you — snacks, drinks & treats! ✨",
     context: "movie_night", urgency: "normal",
     cart: [
-      line("p001", "Butter Popcorn (Microwave, 90g)", 65, 2, "movie staple"),
-      line("p002", "Nachos Tortilla Chips (150g)", 99, 1, "to share"),
-      line("p010", "Cola Soft Drink (750ml)", 45, 4, "one each"),
-      line("p005", "Dark Chocolate Bar (100g)", 110, 1, "something sweet"),
-    ],
-    suggestions: [{ id: "p006", name: "Vanilla Ice Cream Tub", price: 175, reason: "dessert upgrade" }],
+      line("p001", 2, "classic pick"), line("p002", 1, "crunchy & shareable"),
+      line("p010", 4, "one for everyone"), line("p005", 1, "sweet treat"),
+    ].filter(Boolean),
+    suggestions: [
+      { ...getProductById("p006"), reason: "dessert upgrade" },
+      { ...getProductById("p003"), reason: "dip for chips" },
+    ].filter(Boolean),
   };
 }
 
 export async function mockTurn({ message }) {
-  await new Promise((r) => setTimeout(r, 600)); // fake latency
-  const base = build(message);
+  await new Promise((r) => setTimeout(r, 600 + Math.random() * 900));
+  const base = buildCart(message);
   const subtotal = base.cart.reduce((s, i) => s + i.line_total, 0);
   const threshold = 199;
   const gap = Math.max(0, threshold - subtotal);
+  const inCart = new Set(base.cart.map((i) => i.id));
+  const gapFillers = gap > 0
+    ? PRODUCTS
+        .filter((p) => !inCart.has(p.id) && p.price <= gap + 60)
+        .slice(0, 3)
+        .map((p) => ({ id: p.id, name: p.name, price: p.price, reason: "rounds up to free delivery" }))
+    : [];
   return {
     ...base,
     subtotal,
     free_delivery_threshold: threshold,
     gap_amount: gap,
-    gap_fillers: gap > 0
-      ? [{ id: "p001", name: "Butter Popcorn", price: 65, reason: "rounds you up to free delivery" }]
-      : [],
+    gap_fillers: gapFillers,
     cached: false,
   };
 }
