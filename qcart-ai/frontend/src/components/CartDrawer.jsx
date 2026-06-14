@@ -5,6 +5,7 @@ import { useApp } from "../state/AppContext.jsx";
 import CartItem from "./CartItem.jsx";
 import GapNudge from "./GapNudge.jsx";
 import { formatINR } from "../lib/format.js";
+import ReadinessPanel from "./ReadinessPanel.jsx";
 
 /* ── Clear-Cart Confirmation Modal ─────────────────────────── */
 function ClearCartModal({ onConfirm, onCancel }) {
