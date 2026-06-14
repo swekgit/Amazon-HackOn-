@@ -1,41 +1,278 @@
 [
-  { "id": "p001", "name": "Butter Popcorn (Microwave, 90g)", "category": "snacks", "price": 65, "tags": ["movie", "snack", "party", "instant"] },
-  { "id": "p002", "name": "Nachos Tortilla Chips (150g)", "category": "snacks", "price": 99, "tags": ["movie", "snack", "party", "chips"] },
-  { "id": "p003", "name": "Cheese & Salsa Dip (200g)", "category": "snacks", "price": 129, "tags": ["movie", "dip", "party", "nachos"] },
-  { "id": "p004", "name": "Potato Chips Classic Salted (Large)", "category": "snacks", "price": 50, "tags": ["movie", "snack", "party", "chips"] },
-  { "id": "p005", "name": "Dark Chocolate Bar (100g)", "category": "snacks", "price": 110, "tags": ["movie", "dessert", "chocolate", "sweet"] },
-  { "id": "p006", "name": "Vanilla Ice Cream Tub (500ml)", "category": "snacks", "price": 175, "tags": ["movie", "dessert", "party", "sweet", "frozen"] },
-  { "id": "p007", "name": "Salted Peanuts (200g)", "category": "snacks", "price": 60, "tags": ["snack", "party", "namkeen"] },
-  { "id": "p008", "name": "Mixed Namkeen (400g)", "category": "snacks", "price": 95, "tags": ["snack", "party", "namkeen", "tea"] },
-  { "id": "p009", "name": "Premium Belgian Chocolate Box (250g)", "category": "snacks", "price": 499, "tags": ["movie", "dessert", "premium", "sweet", "gift"] },
+  { 
+  "id": "p002",
+  "name": "Nachos Tortilla Chips (150g)",
+  "category": "snacks",
+  "swap_group": "chips",
+  "price": 99,
+  "tags": ["movie", "snack", "party", "chips"]
+},
 
-  { "id": "p010", "name": "Cola Soft Drink (750ml)", "category": "beverages", "price": 45, "tags": ["movie", "party", "drink", "cold"] },
-  { "id": "p011", "name": "Cola Soft Drink (2.25L)", "category": "beverages", "price": 99, "tags": ["party", "drink", "cold", "bulk"] },
-  { "id": "p012", "name": "Lemon Soda (750ml)", "category": "beverages", "price": 45, "tags": ["party", "drink", "cold"] },
-  { "id": "p013", "name": "Fresh Orange Juice (1L)", "category": "beverages", "price": 120, "tags": ["drink", "breakfast", "juice", "premium"] },
-  { "id": "p014", "name": "Mineral Water (1L, Pack of 6)", "category": "beverages", "price": 120, "tags": ["party", "water", "bulk"] },
-  { "id": "p015", "name": "Instant Coffee Jar (100g)", "category": "beverages", "price": 290, "tags": ["coffee", "staple", "restock", "breakfast"] },
-  { "id": "p016", "name": "Assam Tea (250g)", "category": "beverages", "price": 150, "tags": ["tea", "staple", "restock", "breakfast"] },
-  { "id": "p017", "name": "Energy Drink (250ml)", "category": "beverages", "price": 110, "tags": ["drink", "party"] },
+{
+  "id": "p003",
+  "name": "Cheese & Salsa Dip (200g)",
+  "category": "snacks",
+  "price": 129,
+  "tags": ["movie", "dip", "party", "nachos"]
+},
 
-  { "id": "p020", "name": "Full Cream Milk (1L)", "category": "staples", "price": 72, "tags": ["weekly", "staple", "dairy", "restock", "breakfast"] },
-  { "id": "p021", "name": "Brown Bread (400g)", "category": "staples", "price": 50, "tags": ["weekly", "staple", "breakfast", "restock"] },
-  { "id": "p022", "name": "Eggs (Pack of 12)", "category": "staples", "price": 90, "tags": ["weekly", "staple", "breakfast", "protein"] },
-  { "id": "p023", "name": "Basmati Rice (5kg)", "category": "staples", "price": 520, "tags": ["weekly", "staple", "monthly"] },
-  { "id": "p024", "name": "Whole Wheat Atta (5kg)", "category": "staples", "price": 280, "tags": ["weekly", "staple", "monthly"] },
-  { "id": "p025", "name": "Sunflower Oil (1L)", "category": "staples", "price": 160, "tags": ["weekly", "staple", "monthly"] },
-  { "id": "p026", "name": "Sugar (1kg)", "category": "staples", "price": 50, "tags": ["weekly", "staple", "restock"] },
-  { "id": "p027", "name": "Toor Dal (1kg)", "category": "staples", "price": 145, "tags": ["weekly", "staple", "monthly"] },
-  { "id": "p028", "name": "Paneer (200g)", "category": "staples", "price": 95, "tags": ["weekly", "party", "dairy", "protein"] },
-  { "id": "p029", "name": "Butter (100g)", "category": "staples", "price": 60, "tags": ["weekly", "dairy", "breakfast", "restock"] },
+{
+  "id": "p004",
+  "name": "Potato Chips Classic Salted (Large)",
+  "category": "snacks",
+  "swap_group": "chips",
+  "price": 50,
+  "tags": ["movie", "snack", "party", "chips"]
+},
 
-  { "id": "p030", "name": "Onion (1kg)", "category": "produce", "price": 40, "tags": ["weekly", "vegetable", "staple"] },
-  { "id": "p031", "name": "Tomato (1kg)", "category": "produce", "price": 45, "tags": ["weekly", "vegetable", "staple"] },
-  { "id": "p032", "name": "Potato (1kg)", "category": "produce", "price": 35, "tags": ["weekly", "vegetable", "staple"] },
-  { "id": "p033", "name": "Banana (6 pcs)", "category": "produce", "price": 50, "tags": ["weekly", "fruit", "breakfast"] },
-  { "id": "p034", "name": "Apple (1kg)", "category": "produce", "price": 180, "tags": ["weekly", "fruit", "healthy"] },
-  { "id": "p035", "name": "Lemon (4 pcs)", "category": "produce", "price": 30, "tags": ["fever", "vegetable", "immunity"] },
-  { "id": "p036", "name": "Ginger (100g)", "category": "produce", "price": 25, "tags": ["fever", "immunity", "tea"] },
+{
+  "id": "p005",
+  "name": "Dark Chocolate Bar (100g)",
+  "category": "snacks",
+  "swap_group": "chocolate",
+  "price": 110,
+  "tags": ["movie", "dessert", "chocolate", "sweet"]
+},
+
+{
+  "id": "p006",
+  "name": "Vanilla Ice Cream Tub (500ml)",
+  "category": "snacks",
+  "swap_group": "ice_cream",
+  "price": 175,
+  "tags": ["movie", "dessert", "party", "sweet", "frozen"]
+},
+
+{
+  "id": "p007",
+  "name": "Salted Peanuts (200g)",
+  "category": "snacks",
+  "price": 60,
+  "tags": ["snack", "party", "namkeen"]
+},
+
+{
+  "id": "p008",
+  "name": "Mixed Namkeen (400g)",
+  "category": "snacks",
+  "price": 95,
+  "tags": ["snack", "party", "namkeen", "tea"]
+},
+
+{
+  "id": "p009",
+  "name": "Premium Belgian Chocolate Box (250g)",
+  "category": "snacks",
+  "swap_group": "chocolate",
+  "price": 499,
+  "tags": ["movie", "dessert", "premium", "sweet", "gift"]
+},
+
+  { 
+  "id": "p010",
+  "name": "Cola Soft Drink (750ml)",
+  "category": "beverages",
+  "price": 45,
+  "tags": ["movie", "party", "drink", "cold"]
+},
+
+{
+  "id": "p011",
+  "name": "Cola Soft Drink (2.25L)",
+  "category": "beverages",
+  "price": 99,
+  "tags": ["party", "drink", "cold", "bulk"]
+},
+
+{
+  "id": "p012",
+  "name": "Lemon Soda (750ml)",
+  "category": "beverages",
+  "price": 45,
+  "tags": ["party", "drink", "cold"]
+},
+
+{
+  "id": "p013",
+  "name": "Fresh Orange Juice (1L)",
+  "category": "beverages",
+  "swap_group": "juice",
+  "price": 120,
+  "tags": ["drink", "breakfast", "juice", "premium"]
+},
+
+{
+  "id": "p014",
+  "name": "Mineral Water (1L, Pack of 6)",
+  "category": "beverages",
+  "price": 120,
+  "tags": ["party", "water", "bulk"]
+},
+
+{
+  "id": "p015",
+  "name": "Instant Coffee Jar (100g)",
+  "category": "beverages",
+  "swap_group": "coffee",
+  "price": 290,
+  "tags": ["coffee", "staple", "restock", "breakfast"]
+},
+
+{
+  "id": "p016",
+  "name": "Assam Tea (250g)",
+  "category": "beverages",
+  "price": 150,
+  "tags": ["tea", "staple", "restock", "breakfast"]
+},
+
+{
+  "id": "p017",
+  "name": "Energy Drink (250ml)",
+  "category": "beverages",
+  "price": 110,
+  "tags": ["drink", "party"]
+},
+
+  {
+  "id": "p020",
+  "name": "Full Cream Milk (1L)",
+  "category": "staples",
+  "swap_group": "milk",
+  "price": 72,
+  "tags": ["weekly", "staple", "dairy", "restock", "breakfast"]
+},
+
+{
+  "id": "p021",
+  "name": "Brown Bread (400g)",
+  "category": "staples",
+  "swap_group": "bread",
+  "price": 50,
+  "tags": ["weekly", "staple", "breakfast", "restock"]
+},
+
+{
+  "id": "p022",
+  "name": "Eggs (Pack of 12)",
+  "category": "staples",
+  "price": 90,
+  "tags": ["weekly", "staple", "breakfast", "protein"]
+},
+
+{
+  "id": "p023",
+  "name": "Basmati Rice (5kg)",
+  "category": "staples",
+  "swap_group": "rice",
+  "price": 520,
+  "tags": ["weekly", "staple", "monthly"]
+},
+
+{
+  "id": "p024",
+  "name": "Whole Wheat Atta (5kg)",
+  "category": "staples",
+  "price": 280,
+  "tags": ["weekly", "staple", "monthly"]
+},
+
+{
+  "id": "p025",
+  "name": "Sunflower Oil (1L)",
+  "category": "staples",
+  "price": 160,
+  "tags": ["weekly", "staple", "monthly"]
+},
+
+{
+  "id": "p026",
+  "name": "Sugar (1kg)",
+  "category": "staples",
+  "price": 50,
+  "tags": ["weekly", "staple", "restock"]
+},
+
+{
+  "id": "p027",
+  "name": "Toor Dal (1kg)",
+  "category": "staples",
+  "price": 145,
+  "tags": ["weekly", "staple", "monthly"]
+},
+
+{
+  "id": "p028",
+  "name": "Paneer (200g)",
+  "category": "staples",
+  "price": 95,
+  "tags": ["weekly", "party", "dairy", "protein"]
+},
+
+{
+  "id": "p029",
+  "name": "Butter (100g)",
+  "category": "staples",
+  "price": 60,
+  "tags": ["weekly", "dairy", "breakfast", "restock"]
+},
+
+  {
+  "id": "p030",
+  "name": "Onion (1kg)",
+  "category": "produce",
+  "price": 40,
+  "tags": ["weekly", "vegetable", "staple"]
+},
+
+{
+  "id": "p031",
+  "name": "Tomato (1kg)",
+  "category": "produce",
+  "price": 45,
+  "tags": ["weekly", "vegetable", "staple"]
+},
+
+{
+  "id": "p032",
+  "name": "Potato (1kg)",
+  "category": "produce",
+  "price": 35,
+  "tags": ["weekly", "vegetable", "staple"]
+},
+
+{
+  "id": "p033",
+  "name": "Banana (6 pcs)",
+  "category": "produce",
+  "price": 50,
+  "tags": ["weekly", "fruit", "breakfast"]
+},
+
+{
+  "id": "p034",
+  "name": "Apple (1kg)",
+  "category": "produce",
+  "swap_group": "apple",
+  "price": 180,
+  "tags": ["weekly", "fruit", "healthy"]
+},
+
+{
+  "id": "p035",
+  "name": "Lemon (4 pcs)",
+  "category": "produce",
+  "price": 30,
+  "tags": ["fever", "vegetable", "immunity"]
+},
+
+{
+  "id": "p036",
+  "name": "Ginger (100g)",
+  "category": "produce",
+  "price": 25,
+  "tags": ["fever", "immunity", "tea"]
+},
 
   { "id": "p040", "name": "Paracetamol 500mg (Strip of 10)", "category": "health", "price": 30, "tags": ["fever", "medicine", "pain", "emergency"] },
   { "id": "p041", "name": "ORS Hydration Powder (Pack of 5)", "category": "health", "price": 95, "tags": ["fever", "medicine", "hydration", "emergency"] },
@@ -46,39 +283,176 @@
   { "id": "p046", "name": "Tomato Soup (Instant, 2 packs)", "category": "health", "price": 80, "tags": ["fever", "comfort", "soup", "instant"] },
   { "id": "p047", "name": "Vitamin C Tablets (Strip of 10)", "category": "health", "price": 120, "tags": ["fever", "immunity", "medicine"] },
 
-  { "id": "p050", "name": "Baby Diapers (Medium, Pack of 30)", "category": "baby", "price": 599, "tags": ["baby", "newparent", "essentials"] },
-  { "id": "p051", "name": "Baby Wet Wipes (72 pcs)", "category": "baby", "price": 199, "tags": ["baby", "newparent", "essentials"] },
-  { "id": "p052", "name": "Baby Lotion (200ml)", "category": "baby", "price": 250, "tags": ["baby", "newparent", "skincare"] },
-  { "id": "p053", "name": "Baby Cereal (300g)", "category": "baby", "price": 220, "tags": ["baby", "newparent", "food"] },
-  { "id": "p054", "name": "Baby Shampoo (200ml)", "category": "baby", "price": 230, "tags": ["baby", "newparent", "bath"] },
-  { "id": "p055", "name": "Baby Feeding Bottle (250ml)", "category": "baby", "price": 320, "tags": ["baby", "newparent", "feeding"] },
+{ "id": "p050", "name": "Baby Diapers (Medium, Pack of 30)", "category": "baby", "price": 599, "tags": ["baby", "newparent", "essentials"] },
+{ "id": "p051", "name": "Baby Wet Wipes (72 pcs)", "category": "baby", "price": 199, "tags": ["baby", "newparent", "essentials"] },
+{ "id": "p052", "name": "Baby Lotion (200ml)", "category": "baby", "price": 250, "tags": ["baby", "newparent", "skincare"] },
+{ "id": "p053", "name": "Baby Cereal (300g)", "category": "baby", "price": 220, "tags": ["baby", "newparent", "food"] },
+{ "id": "p054", "name": "Baby Shampoo (200ml)", "category": "baby", "price": 230, "tags": ["baby", "newparent", "bath"] },
+{ "id": "p055", "name": "Baby Feeding Bottle (250ml)", "category": "baby", "price": 320, "tags": ["baby", "newparent", "feeding"] },
 
-  { "id": "p060", "name": "Frozen Cheese Pizza (Large)", "category": "party", "price": 280, "tags": ["party", "movie", "frozen", "meal"] },
-  { "id": "p061", "name": "Paper Plates (Pack of 25)", "category": "party", "price": 75, "tags": ["party", "disposable"] },
-  { "id": "p062", "name": "Disposable Cups (Pack of 50)", "category": "party", "price": 60, "tags": ["party", "disposable"] },
-  { "id": "p063", "name": "Birthday Candles (Pack of 10)", "category": "party", "price": 40, "tags": ["party", "birthday"] },
-  { "id": "p064", "name": "Chocolate Cake (500g)", "category": "party", "price": 399, "tags": ["party", "birthday", "dessert", "sweet"] },
-  { "id": "p065", "name": "Garlic Bread (Frozen, 2 packs)", "category": "party", "price": 150, "tags": ["party", "movie", "frozen", "snack"] },
+{
+  "id": "p060",
+  "name": "Frozen Cheese Pizza (Large)",
+  "category": "party",
+  "swap_group": "pizza",
+  "price": 280,
+  "tags": ["party", "movie", "frozen", "meal"]
+},
 
+{ "id": "p061", "name": "Paper Plates (Pack of 25)", "category": "party", "price": 75, "tags": ["party", "disposable"] },
+{ "id": "p062", "name": "Disposable Cups (Pack of 50)", "category": "party", "price": 60, "tags": ["party", "disposable"] },
+{ "id": "p063", "name": "Birthday Candles (Pack of 10)", "category": "party", "price": 40, "tags": ["party", "birthday"] },
+{ "id": "p064", "name": "Chocolate Cake (500g)", "category": "party", "price": 399, "tags": ["party", "birthday", "dessert", "sweet"] },
+{ "id": "p065", "name": "Garlic Bread (Frozen, 2 packs)", "category": "party", "price": 150, "tags": ["party", "movie", "frozen", "snack"] },
 { "id": "p066", "name": "Premium Arabica Coffee (200g)", "category": "beverages", "price": 499, "tags": ["coffee","premium","breakfast"] },
 
-{ "id": "p067", "name": "Cold Pressed Orange Juice (1L)", "category": "beverages", "price": 249, "tags": ["juice","premium","drink"] },
+{
+  "id": "p067",
+  "name": "Cold Pressed Orange Juice (1L)",
+  "category": "beverages",
+  "swap_group": "juice",
+  "price": 249,
+  "tags": ["juice","premium","drink"]
+},
 
-{ "id": "p068", "name": "Gourmet Kettle Chips (200g)", "category": "snacks", "price": 179, "tags": ["chips","premium","party","movie"] },
+{
+  "id": "p068",
+  "name": "Gourmet Kettle Chips (200g)",
+  "category": "snacks",
+  "swap_group": "chips",
+  "price": 179,
+  "tags": ["chips","premium","party","movie"]
+},
 
-{ "id": "p069", "name": "Belgian Chocolate Ice Cream Tub (750ml)", "category": "snacks", "price": 349, "tags": ["dessert","premium","movie","party","dairy"] },
+{
+  "id": "p069",
+  "name": "Belgian Chocolate Ice Cream Tub (750ml)",
+  "category": "snacks",
+  "swap_group": "ice_cream",
+  "price": 349,
+  "tags": ["dessert","premium","movie","party","dairy"]
+},
 
-{ "id": "p070", "name": "Butter Almond Cookies (300g)", "category": "snacks", "price": 199, "tags": ["cookies","premium","snack"] },
+{
+  "id": "p070",
+  "name": "Butter Almond Cookies (300g)",
+  "category": "snacks",
+  "price": 199,
+  "tags": ["cookies","premium","snack"]
+},
 
-{ "id": "p071", "name": "Sparkling Fruit Beverage (750ml)", "category": "beverages", "price": 149, "tags": ["premium","party","drink"] },
+{
+  "id": "p071",
+  "name": "Sparkling Fruit Beverage (750ml)",
+  "category": "beverages",
+  "price": 149,
+  "tags": ["premium","party","drink"]
+},
 
-{ "id": "p072", "name": "Milk Chocolate Bar (45g)", "category": "snacks", "price": 40, "tags": ["chocolate","cheap","sweet"] },
+{
+  "id": "p072",
+  "name": "Milk Chocolate Bar (45g)",
+  "category": "snacks",
+  "swap_group": "chocolate",
+  "price": 40,
+  "tags": ["chocolate","cheap","sweet"]
+},
 
-{ "id": "p073", "name": "Coffee Sachet Pack", "category": "beverages", "price": 99, "tags": ["coffee","cheap"] },
+{
+  "id": "p073",
+  "name": "Coffee Sachet Pack",
+  "category": "beverages",
+  "swap_group": "coffee",
+  "price": 99,
+  "tags": ["coffee","cheap"]
+},
 
-{ "id": "p074", "name": "Organic A2 Ghee (500ml)", "category": "staples", "price": 699, "tags": ["weekly", "staple", "dairy", "premium", "breakfast"] },
+{
+  "id": "p074",
+  "name": "Organic A2 Ghee (500ml)",
+  "category": "staples",
+  "price": 699,
+  "tags": ["weekly", "staple", "dairy", "premium", "breakfast"]
+},
 
-{ "id": "p075", "name": "Imported Fuji Apples (1kg)", "category": "produce", "price": 450, "tags": ["weekly", "fruit", "premium", "healthy"] },
+{
+  "id": "p075",
+  "name": "Imported Fuji Apples (1kg)",
+  "category": "produce",
+  "swap_group": "apple",
+  "price": 450,
+  "tags": ["weekly", "fruit", "premium", "healthy"]
+},
 
-{ "id": "p076", "name": "Loose Poha (500g)", "category": "staples", "price": 35, "tags": ["weekly", "staple", "cheap", "breakfast"] }
+{
+  "id": "p076",
+  "name": "Loose Poha (500g)",
+  "category": "staples",
+  "price": 35,
+  "tags": ["weekly", "staple", "cheap", "breakfast"]
+},
+  {
+    "id": "p077",
+    "name": "Toned Milk (1L)",
+    "category": "staples",
+    "swap_group": "milk",
+    "price": 58,
+    "tags": ["weekly","staple","dairy","breakfast"]
+  },
+  {
+    "id": "p078",
+    "name": "Organic A2 Milk (1L)",
+    "category": "staples",
+    "swap_group": "milk",
+    "price": 110,
+    "tags": ["weekly","staple","dairy","premium"]
+  },
+  {
+    "id": "p079",
+    "name": "Regular Rice (5kg)",
+    "category": "staples",
+    "swap_group": "rice",
+    "price": 350,
+    "tags": ["weekly","staple","monthly"]
+  },
+  {
+    "id": "p080",
+    "name": "Premium Aged Basmati Rice (5kg)",
+    "category": "staples",
+    "swap_group": "rice",
+    "price": 799,
+    "tags": ["weekly","staple","monthly","premium"]
+  },
+  {
+    "id": "p081",
+    "name": "White Bread (400g)",
+    "category": "staples",
+    "swap_group": "bread",
+    "price": 35,
+    "tags": ["breakfast","staple"]
+  },
+  {
+    "id": "p082",
+    "name": "Multigrain Bread (400g)",
+    "category": "staples",
+    "swap_group": "bread",
+    "price": 75,
+    "tags": ["breakfast","staple","premium"]
+  },
+  {
+    "id": "p083",
+    "name": "Frozen Veg Pizza (Medium)",
+    "category": "party",
+    "swap_group": "pizza",
+    "price": 199,
+    "tags": ["party","movie","meal"]
+  },
+  {
+    "id": "p084",
+    "name": "Gourmet Four Cheese Pizza (Large)",
+    "category": "party",
+    "swap_group": "pizza",
+    "price": 399,
+    "tags": ["party","movie","premium"]
+  }
 ]
