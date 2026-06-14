@@ -15,9 +15,10 @@ import RainEffect from "./components/RainEffect.jsx";
 import { useApp } from "./state/AppContext.jsx";
 import { useState } from "react";
 import ForYou from "./components/ForYou";
+import DesignSystemPreview from "./components/DesignSystemPreview.jsx";
 
-
-
+// Toggle to true to view design system preview — set false for production
+const SHOW_DESIGN_SYSTEM = false;
 const sectionVariants = {
   hidden: { opacity: 0, y: 30 },
   visible: {
@@ -41,6 +42,8 @@ const staggerContainer = {
 export default function App() {
   const [activeTab, setActiveTab] = useState("foryou");
   const { cartOpen, chatOpen } = useApp();
+
+  if (SHOW_DESIGN_SYSTEM) return <DesignSystemPreview />;
 
   return (
     <div className="min-h-screen relative bg-white text-gray-900 overflow-x-hidden">
