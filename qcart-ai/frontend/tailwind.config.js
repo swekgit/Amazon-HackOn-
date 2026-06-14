@@ -4,17 +4,48 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: "#111111",
-        canvas: "#F7F8FA",
+        // ─── QCart Design System Tokens ────────────────────────────
+        brand: {
+          DEFAULT: "#FF7A1A",
+          deep: "#E85D04",
+          soft: "#FFE7D3",
+        },
+        cta: {
+          DEFAULT: "#FFB703",
+          deep: "#F59E0B",
+        },
+        ink: "#17161B",
+        muted: "#6E6B76",
+        line: "#ECEAE6",
+        canvas: "#FAFAF7",
+        card: "#FFFFFF",
+        green: {
+          DEFAULT: "#0E9F6E",
+          soft: "#E3F7EE",
+        },
+        blue: {
+          DEFAULT: "#2D7FF9",
+          soft: "#E7F0FE",
+        },
+        rose: {
+          DEFAULT: "#E5484D",
+          soft: "#FDE8E8",
+        },
+
+        // ─── Backwards Compatibility Aliases ──────────────────────
+        // smart → brand (existing components use smart extensively)
         smart: {
-          DEFAULT: "#FF9900",
-          dark: "#E88A00",
-          soft: "#FFF4E0",
+          DEFAULT: "#FF7A1A",
+          dark: "#E85D04",
+          soft: "#FFE7D3",
         },
+        // fresh → green (existing components use fresh)
         fresh: {
-          DEFAULT: "#00A650",
-          soft: "#E6F9ED",
+          DEFAULT: "#0E9F6E",
+          soft: "#E3F7EE",
         },
+
+        // ─── Legacy tokens (still used by some components) ────────
         amazon: {
           DEFAULT: "#FF9900",
           dark: "#131921",
@@ -31,7 +62,13 @@ export default {
       },
       fontFamily: {
         display: ['"Space Grotesk"', "system-ui", "sans-serif"],
+        body: ['"Inter"', "system-ui", "sans-serif"],
         sans: ['"Inter"', "system-ui", "sans-serif"],
+      },
+      borderRadius: {
+        card: "18px",
+        panel: "24px",
+        pill: "999px",
       },
       keyframes: {
         "fade-up": {
@@ -55,8 +92,8 @@ export default {
           "50%": { transform: "translateY(-6px)" },
         },
         glow: {
-          "0%, 100%": { boxShadow: "0 0 20px rgba(255, 153, 0, 0.3)" },
-          "50%": { boxShadow: "0 0 40px rgba(255, 153, 0, 0.5)" },
+          "0%, 100%": { boxShadow: "0 0 20px rgba(255, 122, 26, 0.3)" },
+          "50%": { boxShadow: "0 0 40px rgba(255, 122, 26, 0.5)" },
         },
       },
       animation: {

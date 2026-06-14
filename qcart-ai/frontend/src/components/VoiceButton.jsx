@@ -4,33 +4,79 @@ import { Mic } from "lucide-react";
 
 export default function VoiceButton({ onResult, disabled }) {
   const [supported, setSupported] = useState(false);
-  const [listening, setListening] = useState(false);
+  const [status, setStatus] = useState("idle"); // idle | listening | error
   const recRef = useRef(null);
+  const resetTimerRef = useRef(null);
 
   useEffect(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) return;
+
     setSupported(true);
+
     const rec = new SR();
     rec.lang = "en-IN";
     rec.interimResults = false;
     rec.maxAlternatives = 1;
-    rec.onresult = (e) => onResult(e.results[0][0].transcript);
-    rec.onend = () => setListening(false);
-    rec.onerror = () => setListening(false);
+
+    rec.onstart = () => {
+      setStatus("listening");
+    };
+
+    rec.onresult = (e) => {
+      const text = e.results?.[0]?.[0]?.transcript?.trim();
+      if (text) onResult(text);
+    };
+
+    rec.onend = () => {
+      setStatus((s) => (s === "error" ? s : "idle"));
+    };
+
+    rec.onerror = (e) => {
+      if (
+        e.error === "not-allowed" ||
+        e.error === "service-not-allowed" ||
+        e.error === "audio-capture"
+      ) {
+        setStatus("error");
+
+        clearTimeout(resetTimerRef.current);
+        resetTimerRef.current = setTimeout(() => {
+          setStatus("idle");
+        }, 1800);
+      } else {
+        setStatus("idle");
+      }
+    };
+
     recRef.current = rec;
+
+    return () => {
+      clearTimeout(resetTimerRef.current);
+      rec.stop?.();
+    };
   }, [onResult]);
 
   if (!supported) return null;
 
   const toggle = () => {
-    if (listening) {
+    if (!recRef.current || disabled) return;
+
+    if (status === "listening") {
       recRef.current.stop();
-    } else {
-      setListening(true);
+      return;
+    }
+
+    try {
+      setStatus("listening");
       recRef.current.start();
+    } catch {
+      setStatus("idle");
     }
   };
+
+  const listening = status === "listening";
+  const error = status === "error";
 
   return (
     <div className="relative">
