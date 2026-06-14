@@ -34,30 +34,30 @@ export default function Header() {
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-14">
+        <div className="flex flex-wrap items-center justify-between gap-y-2 py-2 sm:h-14 sm:py-0">
 
           {/* Left: Logo + AI badge */}
-          <div className="flex items-center gap-2">
-            <span className="text-xl">⚡</span>
-            <span className="font-display text-lg font-bold tracking-tight text-ink">
+          <div className="flex items-center gap-1 sm:gap-2">
+            <span className="text-lg sm:text-xl">⚡</span>
+            <span className="font-display text-base sm:text-lg font-bold tracking-tight text-ink">
               QCart
             </span>
-            <span className="rounded-md bg-brand px-1.5 py-0.5 text-[9px] font-bold text-white uppercase tracking-wider">
+            <span className="rounded-md bg-brand px-1 sm:px-1.5 py-0.5 text-[8px] sm:text-[9px] font-bold text-white uppercase tracking-wider">
               AI
             </span>
           </div>
 
           {/* Center: Location + Delivery */}
-          <div className="hidden sm:flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3">
             {/* Location pill */}
             <div className="relative" ref={cityRef}>
               <button
                 onClick={() => setCityOpen((v) => !v)}
-                className="flex items-center gap-1.5 rounded-full bg-canvas px-3 py-1.5 text-sm ring-1 ring-line hover:ring-brand/30 transition"
+                className="flex items-center gap-1 sm:gap-1.5 rounded-full bg-canvas px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm ring-1 ring-line hover:ring-brand/30 transition"
               >
-                <MapPin size={13} className="text-brand" />
-                <span className="font-medium text-ink text-xs">{city}</span>
-                <ChevronDown size={11} className={`text-muted transition-transform ${cityOpen ? "rotate-180" : ""}`} />
+                <MapPin size={11} className="text-brand sm:w-[13px] sm:h-[13px]" />
+                <span className="font-medium text-ink text-[10px] sm:text-xs">{city}</span>
+                <ChevronDown size={10} className={`text-muted transition-transform sm:w-[11px] sm:h-[11px] ${cityOpen ? "rotate-180" : ""}`} />
               </button>
 
               <AnimatePresence>
@@ -89,26 +89,26 @@ export default function Header() {
             </div>
 
             {/* 10 min delivery badge */}
-            <div className="flex items-center gap-1 rounded-full bg-green-soft px-2.5 py-1 text-[11px] font-semibold text-green">
-              <Zap size={11} />
+            <div className="flex items-center gap-1 rounded-full bg-green-soft px-2 sm:px-2.5 py-1 text-[9px] sm:text-[11px] font-semibold text-green">
+              <Zap size={10} className="sm:w-[11px] sm:h-[11px]" />
               <span>10 min</span>
             </div>
           </div>
 
           {/* Right: Cart + Profile */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             {/* Cart button */}
             <button
               onClick={() => setCartOpen(true)}
-              className="relative p-2 rounded-xl hover:bg-canvas transition"
+              className="relative p-1.5 sm:p-2 rounded-xl hover:bg-canvas transition"
               aria-label="Open cart"
             >
-              <ShoppingCart size={20} className="text-ink" />
+              <ShoppingCart size={18} className="text-ink sm:w-[20px] sm:h-[20px]" />
               {itemCount > 0 && (
                 <motion.span
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  className="absolute -top-0.5 -right-0.5 grid h-[18px] w-[18px] place-items-center rounded-full bg-brand text-[9px] font-bold text-white"
+                  className="absolute -top-0.5 -right-0.5 grid h-[16px] w-[16px] sm:h-[18px] sm:w-[18px] place-items-center rounded-full bg-brand text-[8px] sm:text-[9px] font-bold text-white"
                 >
                   {itemCount}
                 </motion.span>
@@ -116,8 +116,8 @@ export default function Header() {
             </button>
 
             {/* Profile */}
-            <button className="p-2 rounded-xl hover:bg-canvas transition" aria-label="Profile">
-              <User size={20} className="text-ink" />
+            <button className="p-1.5 sm:p-2 rounded-xl hover:bg-canvas transition" aria-label="Profile">
+              <User size={18} className="text-ink sm:w-[20px] sm:h-[20px]" />
             </button>
           </div>
         </div>

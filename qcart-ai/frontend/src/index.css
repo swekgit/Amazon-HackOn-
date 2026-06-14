@@ -149,9 +149,17 @@ body {
 
 /* Responsive sizing */
 @media (max-width: 480px) {
+  .segmented-toggle-wrapper {
+    padding: 16px 12px 4px;
+  }
+  .segmented-toggle {
+    width: 100%;
+    display: flex;
+  }
   .segmented-toggle__tab {
-    padding: 8px 20px;
+    flex: 1;
+    padding: 8px 16px;
     font-size: 13px;
+    text-align: center;
   }
 }
-

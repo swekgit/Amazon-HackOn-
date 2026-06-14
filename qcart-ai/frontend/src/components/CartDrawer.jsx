@@ -48,7 +48,7 @@ function ClearCartModal({ onConfirm, onCancel }) {
 /* ── Compact AI Stats Row ──────────────────────────────────── */
 function AIStatsRow({ buildTime, itemCount }) {
   return (
-    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+    <div className="flex flex-wrap items-center gap-2">
       <StatPill icon={<Zap size={11} />} label={`${buildTime || "—"}s`} sub="Built" color="text-brand" bg="bg-brand-soft" />
       <StatPill icon={<Clock size={11} />} label={`${Math.max(1, itemCount * 2)} min`} sub="Saved" color="text-cta-deep" bg="bg-amber-50" />
       <StatPill icon={<Truck size={11} />} label="10 min" sub="ETA" color="text-green" bg="bg-green-soft" />

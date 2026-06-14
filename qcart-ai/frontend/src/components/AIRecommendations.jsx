@@ -36,7 +36,7 @@ export default function AIRecommendations() {
       </div>
       <p className="text-xs text-gray-500 mb-4">Based on your shopping patterns</p>
 
-      <div className="flex gap-3 overflow-x-auto no-scrollbar pb-3 snap-x-mandatory">
+      <div className="grid grid-cols-1 min-[360px]:grid-cols-2 md:grid-cols-3 lg:flex gap-3 lg:overflow-x-auto no-scrollbar pb-3 snap-x-mandatory">
         {recommendations.map((product, i) => {
           const badge = getBadge(product);
           const cartItem = cart.find((c) => c.id === product.id);
@@ -48,7 +48,7 @@ export default function AIRecommendations() {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.06, duration: 0.4 }}
               viewport={{ once: true }}
-              className="shrink-0 w-40 sm:w-44 rounded-xl bg-white flex flex-col overflow-hidden relative hover:shadow-md transition-shadow"
+              className="shrink-0 w-full lg:w-44 rounded-xl bg-white flex flex-col overflow-hidden relative hover:shadow-md transition-shadow"
               style={{ border: "1px solid #E5E7EB" }}
             >
               {/* Badge */}
@@ -83,7 +83,7 @@ export default function AIRecommendations() {
                 <div className="mt-2.5">
                   {qty > 0 ? (
                     <div
-                      className="flex items-center justify-between rounded-lg overflow-hidden"
+                      className="flex items-center justify-between rounded-lg overflow-hidden h-[44px]"
                       style={{ border: "1px solid #E5E7EB" }}
                     >
                       <button
@@ -92,7 +92,7 @@ export default function AIRecommendations() {
                             ? removeItem(product.id)
                             : setQty(product.id, qty - 1)
                         }
-                        className="grid h-9 w-9 place-items-center text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition"
+                        className="grid h-11 w-11 shrink-0 place-items-center text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition"
                       >
                         <Minus size={14} />
                       </button>
@@ -101,7 +101,7 @@ export default function AIRecommendations() {
                       </span>
                       <button
                         onClick={() => setQty(product.id, qty + 1)}
-                        className="grid h-9 w-9 place-items-center text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition"
+                        className="grid h-11 w-11 shrink-0 place-items-center text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition"
                       >
                         <Plus size={14} />
                       </button>
@@ -109,7 +109,7 @@ export default function AIRecommendations() {
                   ) : (
                     <button
                       onClick={() => addProduct({ ...product, reason: "recommended for you" })}
-                      className="w-full flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition active:scale-[0.97]"
+                      className="w-full flex items-center justify-center gap-1.5 rounded-lg min-h-[44px] text-xs font-semibold transition active:scale-[0.97]"
                       style={{ backgroundColor: "#FFD814", color: "#111827" }}
                       onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F7CA00")}
                       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#FFD814")}

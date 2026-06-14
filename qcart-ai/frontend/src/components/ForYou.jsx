@@ -132,7 +132,7 @@ export default function ForYou({ }) {
               </h2>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 grid-cols-1 min-[360px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {data.recommended?.map((product) => (
                 <div
                   key={product.id}
@@ -174,7 +174,7 @@ export default function ForYou({ }) {
               </h2>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 grid-cols-1 min-[360px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {data.deals?.map((deal) => (
                 <div
                   key={deal.id}
