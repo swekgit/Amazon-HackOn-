@@ -9,13 +9,14 @@ export function AppProvider({ children }) {
   const [messages, setMessages] = useState([]);
   const [cart, setCart] = useState([]);
   const [meta, setMeta] = useState({
-    context: "routine",
-    urgency: "normal",
-    threshold: 199,
-    gapFillers: [],
-    suggestions: [],
-    buildTime: null,
-  });
+  context: "routine",
+  urgency: "normal",
+  threshold: 199,
+  gapFillers: [],
+  suggestions: [],
+  readiness: null,
+  buildTime: null,
+});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [cartOpen, setCartOpen] = useState(false);
@@ -34,6 +35,40 @@ export function AppProvider({ children }) {
     [cart]
   );
   const gapAmount = Math.max(0, meta.threshold - subtotal);
+
+  const readiness = useMemo(() => {
+  const raw = meta.readiness;
+
+  if (!raw?.essentials?.length) {
+    return null;
+  }
+
+  const cartIds = new Set(
+    cart.map((item) => item.id)
+  );
+
+  const present = raw.essentials.filter((e) =>
+    cartIds.has(e.id)
+  );
+
+  const missing = raw.essentials.filter((e) =>
+    !cartIds.has(e.id)
+  );
+
+  const score = Math.round(
+    (present.length / raw.essentials.length) * 100
+  );
+
+  return {
+    label: raw.label,
+    essentials: raw.essentials,
+    present,
+    missing,
+    score,
+    complete:
+      present.length === raw.essentials.length,
+  };
+}, [meta.readiness, cart]);
 
   const send = useCallback(
     async (text) => {
@@ -185,6 +220,7 @@ const swapItem = useCallback((oldId, newProduct) => {
       setChatOpen,
       // Meta
       meta,
+      readiness,
       gapAmount,
       // Data
       orderHistory: ORDER_HISTORY,

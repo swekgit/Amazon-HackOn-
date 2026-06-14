@@ -77,7 +77,7 @@ function ClearSuccessToast() {
 
 /* ── Cart Drawer (main) ────────────────────────────────────── */
 export default function CartDrawer() {
-  const { cart, subtotal, setCartOpen, setChatOpen, meta, addProduct, setQty, removeItem, gapAmount, hasCart, clearCart } = useApp();
+  const { cart, subtotal, setCartOpen, setChatOpen, meta,readiness, addProduct, setQty, removeItem, gapAmount, hasCart, clearCart } = useApp();
   const [placed, setPlaced] = useState(false);
   const [showClearModal, setShowClearModal] = useState(false);
   const [showClearToast, setShowClearToast] = useState(false);
@@ -209,7 +209,7 @@ export default function CartDrawer() {
                 {/* Readiness Score */}
                 {hasCart && (
                   <div className="mt-3">
-                    <ReadinessPanel readiness={meta.readiness} onAdd={addProduct} />
+                    <ReadinessPanel readiness={readiness} onAdd={addProduct} />
                   </div>
                 )}
 
