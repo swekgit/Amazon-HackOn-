@@ -75,7 +75,7 @@ QCart AI is a full stack intelligent shopping assistant that understands natural
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                        FRONTEND (React + Vite)                       │
+│                        FRONTEND (React + Vite)                      │
 │  ┌──────────┐  ┌──────────────┐  ┌──────────┐  ┌───────────────┐  │
 │  │ Chat UI  │  │ ForYou Feed  │  │Cart Drawer│ │ Trending in City │  │
 │  └────┬─────┘  └──────┬───────┘  └─────┬────┘  └───────┬───────┘  │
@@ -98,7 +98,7 @@ QCart AI is a full stack intelligent shopping assistant that understands natural
 │  ┌────────────────┐  ┌───────────▼──────────┐  ┌────────────────┐   │
 │  │  Response Cache│  │   AWS Bedrock API    │  │  Catalog Layer │   │
 │  │  (In-Memory)   │  │   (Multi-Model)      │  │  (JSON + Tags) │   │
-│  └────────────────┘  └──────────────────────┘  └────────────────┘  +│
+│  └────────────────┘  └──────────────────────┘  └────────────────┘   │
 │                                                                     │
 └──────────────────────────────────┬───────────────────────────────────┘
                                    │
