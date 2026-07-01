@@ -224,6 +224,7 @@ export async function mockTurn({ message }) {
         .slice(0, 3)
         .map((p) => ({ id: p.id, name: p.name, price: p.price, reason: "rounds up to free delivery" }))
     : [];
+
   return {
     ...base,
     subtotal,
@@ -231,5 +232,16 @@ export async function mockTurn({ message }) {
     gap_amount: gap,
     gap_fillers: gapFillers,
     cached: false,
+    recipe: null,
+    payment_offers: [
+      { id: "po1", title: "10% off with HDFC Credit Card", code: "HDFC10", savings: Math.round(subtotal * 0.1) },
+      { id: "po2", title: "5% cashback with Amazon Pay", code: "AMZPAY5", savings: Math.round(subtotal * 0.05) },
+      { id: "po3", title: "Flat ₹30 off on UPI", code: "UPI30", savings: 30 },
+    ],
+    saved_payments: [
+      { id: "sp1", type: "card", label: "HDFC Visa •••• 4242", icon: "💳" },
+      { id: "sp2", type: "upi",  label: "ravi@okaxis", icon: "📱" },
+      { id: "sp3", type: "wallet", label: "Amazon Pay ₹240 balance", icon: "🪙" },
+    ],
   };
 }

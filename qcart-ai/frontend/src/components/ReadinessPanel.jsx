@@ -1,122 +1,119 @@
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, Plus } from "lucide-react";
 import { formatINR } from "../lib/format.js";
 
-export default function ReadinessPanel({
-  readiness,
-  onAdd,
-}) {
-  if (!readiness?.essentials?.length) {
-    return null;
+/**
+ * Minimal Readiness Panel — Task 1
+ * Shows: animated progress bar, band label, one missing-items line.
+ * Bands: 0-40 "Just started" | 41-70 "Almost there" | 71-99 "Good to go" | 100 context-aware
+ */
+function getBand(score, label) {
+  if (score >= 100) {
+    if (label?.toLowerCase().includes("movie")) return "Movie-night ready ✓";
+    if (label?.toLowerCase().includes("party")) return "Party ready ✓";
+    if (label?.toLowerCase().includes("recipe") || label?.toLowerCase().includes("cook")) return "Ready to cook ✓";
+    return "You're all set ✓";
   }
+  if (score >= 71) return "Good to go";
+  if (score >= 41) return "Almost there";
+  return "Just started";
+}
 
-  const {
-    label,
-    score,
-    missing,
-    complete,
-  } = readiness;
+export default function ReadinessPanel({ readiness, onAdd }) {
+  const [addedIds, setAddedIds] = useState(new Set());
 
-  // Success state
-  if (complete) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl bg-white p-4 ring-1 ring-black/5 shadow-sm"
-      >
-        <div className="flex items-center gap-2 text-fresh font-medium text-sm">
-          <CheckCircle2 size={18} />
-          <span>100% ready ✓</span>
-        </div>
-      </motion.div>
-    );
-  }
+  if (!readiness?.essentials?.length) return null;
 
-  const barColor =
-    score < 50
-      ? "bg-red-500"
-      : score < 80
-      ? "bg-amber-500"
-      : "bg-fresh";
+  const { label, score, missing, complete } = readiness;
+  const band = getBand(score, label);
+
+  // Animate bar from amber → green as score approaches 100
+  const barColor = complete
+    ? "bg-green-500"
+    : score >= 71
+    ? "bg-green-400"
+    : "bg-amber-400";
+
+  const handleAdd = (item) => {
+    onAdd(item);
+    setAddedIds((prev) => new Set(prev).add(item.id));
+  };
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl bg-white p-4 ring-1 ring-black/5 shadow-sm"
+      className="rounded-xl bg-white p-3 ring-1 ring-black/5 shadow-sm"
     >
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-ink/80">
-          {label}
+      {/* Band label + score */}
+      <div className="flex items-center justify-between mb-2">
+        <span className={`text-xs font-semibold ${complete ? "text-green-600" : "text-ink/70"}`}>
+          {complete && <CheckCircle2 size={12} className="inline mr-1 mb-0.5" />}
+          {band}
         </span>
-
-        <span className="text-sm font-semibold text-ink/60">
-          {score}%
-        </span>
+        <span className="text-xs text-ink/40">{score}%</span>
       </div>
 
-      {/* Progress */}
-      <div className="mt-2.5 h-3 overflow-hidden rounded-full bg-black/5">
+      {/* Animated progress bar — amber → green */}
+      <div className="h-1.5 overflow-hidden rounded-full bg-black/5">
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${score}%` }}
-          transition={{
-            duration: 0.5,
-            ease: "easeOut",
-          }}
-          className={`h-full rounded-full ${barColor}`}
+          transition={{ duration: 0.7, ease: "easeOut" }}
+          className={`h-full rounded-full transition-colors duration-700 ${barColor}`}
         />
       </div>
 
-      {/* Missing essentials */}
-      {missing.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {missing.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => onAdd(item)}
-              className="
-                inline-flex
-                items-center
-                gap-1.5
-                rounded-xl
-                px-3
-                py-2
-                text-xs
-                bg-white
-                text-ink/70
-                ring-1
-                ring-black/10
-                hover:ring-smart
-                active:scale-[0.98]
-                transition
-              "
-            >
-              <Plus size={12} />
-
-              <span className="font-medium">
-                {item.name}
+      {/* One missing-items line — only when incomplete */}
+      <AnimatePresence>
+        {!complete && missing?.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mt-2.5 flex flex-wrap gap-1.5 overflow-hidden"
+          >
+            {missing.slice(0, 3).map((item) => {
+              const added = addedIds.has(item.id);
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleAdd(item)}
+                  disabled={added}
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium ring-1 transition ${
+                    added
+                      ? "bg-green-soft text-green ring-green/15"
+                      : "bg-white text-ink/70 ring-black/10 hover:ring-brand/40"
+                  }`}
+                >
+                  {added ? <CheckCircle2 size={9} /> : <Plus size={9} />}
+                  {item.name} · {formatINR(item.price)}
+                </button>
+              );
+            })}
+            {missing.length > 3 && (
+              <span className="inline-flex items-center text-[10px] text-ink/40 px-1">
+                +{missing.length - 3} more
               </span>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-              <span className="text-ink/40">
-                ·
-              </span>
-
-              <span>
-                {formatINR(item.price)}
-              </span>
-
-              {item.reason && (
-                <span className="ml-1 text-[10px] text-ink/40">
-                  {item.reason}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* 100% celebration */}
+      <AnimatePresence>
+        {complete && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            className="mt-2 text-center text-xs text-green-600 font-medium"
+          >
+            🎉 {band}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
