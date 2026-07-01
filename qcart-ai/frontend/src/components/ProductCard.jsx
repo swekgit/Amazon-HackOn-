@@ -1,25 +1,14 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Plus, Minus } from "lucide-react";
 import { useApp } from "../state/AppContext.jsx";
-import { getCategoryEmoji } from "../data/products.js";
 import { formatINR } from "../lib/format.js";
+
+const S3 = "https://qcart-ai-apoorva-images.s3.ap-south-1.amazonaws.com/products/";
 
 /**
  * Amazon Quick-Commerce style product card with quantity stepper.
- *
- * Features:
- *  - Fixed height, flex-col, CTA pinned to bottom
- *  - Not-in-cart: yellow [+ Add] button
- *  - In-cart: [-] qty [+] stepper
- *  - Uniform across all grids
- *
- * Props:
- *  product   : { id, name, price, category, tags?, reason? }
- *  badge     : string | null (e.g. "20% OFF")
- *  badgeColor: string (tailwind bg class, default "bg-green-600")
- *  subtitle  : string (e.g. "Ordered 3x" or reason)
- *  oldPrice  : number | null (strike-through price)
- *  index     : number (stagger delay)
+ * Task 5: uses real product image from S3, falls back to /placeholder.jpg on error.
  */
 export default function ProductCard({
   product,
@@ -30,9 +19,13 @@ export default function ProductCard({
   index = 0,
 }) {
   const { cart, addProduct, setQty, removeItem } = useApp();
+  const [imgErrored, setImgErrored] = useState(false);
   const cartItem = cart.find((i) => i.id === product.id);
   const qty = cartItem?.quantity || 0;
-  const emoji = getCategoryEmoji(product.category);
+
+  const imgSrc = imgErrored
+    ? "/placeholder.jpg"
+    : `${S3}${product.id}.jpg`;
 
   return (
     <motion.div
@@ -49,27 +42,25 @@ export default function ProductCard({
         </span>
       )}
 
-      {/* Product visual area */}
-      <div className="flex items-center justify-center bg-gray-50 py-5">
-        <span className="text-4xl select-none">{emoji}</span>
+      {/* Product image */}
+      <div className="flex items-center justify-center bg-gray-50 overflow-hidden" style={{ height: "120px" }}>
+        <img
+          src={imgSrc}
+          alt={product.name}
+          onError={() => setImgErrored(true)}
+          className="h-full w-full object-contain"
+        />
       </div>
 
-      {/* Info area — flex-1 pushes CTA to bottom */}
+      {/* Info area */}
       <div className="flex flex-col flex-1 px-3 pt-2.5 pb-3">
-        {/* Product name — 2 lines max */}
         <p className="font-medium text-[13px] leading-snug text-gray-900 line-clamp-2 min-h-[2.25rem]">
           {product.name}
         </p>
-
-        {/* Subtitle / reason */}
         {subtitle && (
           <p className="text-[11px] text-gray-500 mt-0.5 truncate">{subtitle}</p>
         )}
-
-        {/* Spacer */}
         <div className="flex-1 min-h-1" />
-
-        {/* Price row */}
         <div className="flex items-baseline gap-1.5 mt-1.5">
           <span className="font-display font-bold text-base text-gray-900">
             {formatINR(product.price)}
@@ -80,26 +71,17 @@ export default function ProductCard({
             </span>
           )}
         </div>
-
-        {/* CTA — always at bottom (mt-auto) */}
         <div className="mt-2.5">
           {qty > 0 ? (
-            /* Quantity stepper */
             <div className="flex items-center justify-between rounded-lg overflow-hidden ring-1 ring-gray-200 h-[44px]">
               <button
-                onClick={() =>
-                  qty <= 1
-                    ? removeItem(product.id)
-                    : setQty(product.id, qty - 1)
-                }
+                onClick={() => qty <= 1 ? removeItem(product.id) : setQty(product.id, qty - 1)}
                 className="grid h-11 w-11 shrink-0 place-items-center text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition"
                 aria-label="Decrease quantity"
               >
                 <Minus size={14} />
               </button>
-              <span className="font-display font-bold text-sm text-gray-900 min-w-[2rem] text-center">
-                {qty}
-              </span>
+              <span className="font-display font-bold text-sm text-gray-900 min-w-[2rem] text-center">{qty}</span>
               <button
                 onClick={() => setQty(product.id, qty + 1)}
                 className="grid h-11 w-11 shrink-0 place-items-center text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition"
@@ -109,11 +91,8 @@ export default function ProductCard({
               </button>
             </div>
           ) : (
-            /* Add button — Amazon yellow */
             <button
-              onClick={() =>
-                addProduct({ ...product, reason: subtitle || "recommended for you" })
-              }
+              onClick={() => addProduct({ ...product, reason: subtitle || "recommended for you" })}
               className="w-full flex items-center justify-center gap-1.5 rounded-lg min-h-[44px] text-sm font-semibold transition active:scale-[0.97]"
               style={{ backgroundColor: "#FFD814", color: "#111827" }}
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F7CA00")}
