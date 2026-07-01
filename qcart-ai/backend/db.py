@@ -19,7 +19,7 @@ load_dotenv()
 MONGODB_URI = os.getenv("MONGODB_URI", "")
 
 if MONGODB_URI:
-    _client = MongoClient(MONGODB_URI)
+    _client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
     _db = _client["qcart"]
 
     # Collections — the shared contract
@@ -28,6 +28,7 @@ if MONGODB_URI:
     customer_tags = _db["customer_tags"]
     offers = _db["offers"]
     customer_cycles = _db["customer_cycles"]
+    products = _db["products"]
 else:
     # Graceful degradation: if no Mongo URI, expose None collections
     # This allows the existing backend to run without Mongo configured
@@ -38,6 +39,7 @@ else:
     customer_tags = None
     offers = None
     customer_cycles = None
+    products = None
 
 
 def is_connected() -> bool:

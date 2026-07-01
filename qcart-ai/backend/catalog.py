@@ -4,9 +4,33 @@ This is the data layer the rest of the backend builds on."""
 import json
 from pathlib import Path
 
+import db
+
 DATA = Path(__file__).parent / "data"
 
-CATALOG = json.loads((DATA / "products.json").read_text())
+
+def get_catalog() -> list[dict]:
+    """Load product catalog from MongoDB if available, else fall back to JSON file.
+
+    Returns a list of product dicts. Never raises — gracefully degrades.
+    """
+    # Try MongoDB first
+    if db.products is not None:
+        try:
+            if db.is_connected():
+                docs = list(db.products.find({}, {"_id": 0}))
+                if docs:
+                    return docs
+        except Exception:
+            pass
+
+    # Fallback: load from local JSON file
+    products_data = json.loads((DATA / "products.json").read_text())
+    return products_data.get("products", [])
+
+
+CATALOG = get_catalog()
+
 HISTORY = json.loads((DATA / "orders.json").read_text())
 
 BY_ID = {p["id"]: p for p in CATALOG}
@@ -145,7 +169,7 @@ def compact_catalog() -> str:
             "price": p["price"],
             "tags": p["tags"]
         }
-        for p in results
+        for p in CATALOG
     ]
     return json.dumps(rows, separators=(",", ":"))
 
