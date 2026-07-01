@@ -6,7 +6,10 @@ from pathlib import Path
 
 DATA = Path(__file__).parent / "data"
 
-CATALOG = json.loads((DATA / "products.json").read_text())
+products_data = json.loads((DATA / "products.json").read_text())
+
+CATALOG = products_data.get("products", [])
+
 HISTORY = json.loads((DATA / "orders.json").read_text())
 
 BY_ID = {p["id"]: p for p in CATALOG}

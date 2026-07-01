@@ -13,3 +13,9 @@ __pycache__/
 *.pyc
 
 .env
+
+# Catalogue tools generated content
+qcart-ai/catalogue_tools/images/
+qcart-ai/catalogue_tools/logs/
+
+*.env
