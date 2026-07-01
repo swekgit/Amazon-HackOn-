@@ -24,6 +24,8 @@ import db
 import gap
 import db
 import rule_engine
+import persona
+import recommendation_engine
 
 load_dotenv()
 
@@ -257,7 +259,17 @@ def cart_turn(turn: CartTurn):
     return payload
 
 @app.get("/api/foryou")
-def for_you(customer_id: str):
+def for_you(customer_id: str, city: str = DEFAULT_CITY):
+
+    # Get persona/segment
+    demo_persona = persona.get_demo_persona(customer_id)
+    segment = demo_persona["segment"] if demo_persona else "working"
+
+    customer_info = {
+        "id": customer_id,
+        "name": demo_persona["name"] if demo_persona else customer_id,
+        "segment": segment,
+    }
 
     customer = db.customer_tags.find_one(
         {"customer_id": customer_id}
@@ -266,7 +278,16 @@ def for_you(customer_id: str):
     tags = (customer or {}).get("tags", [])
 
     if not tags:
-        return _default_foryou(customer_id)
+        # Use segment-based recommendations even without tags
+        recommended = recommendation_engine.get_recommendations([], segment, city)
+        trending = recommendation_engine.get_trending(city)
+        return {
+            "customer": customer_info,
+            "tags": [],
+            "recommended": recommended[:8],
+            "deals": [],
+            "trending": trending[:6],
+        }
 
     retrieval_query = " ".join(tags)
 
@@ -278,7 +299,15 @@ def for_you(customer_id: str):
     candidates = json.loads(candidate_json)
 
     if not candidates:
-        return _default_foryou(customer_id)
+        recommended = recommendation_engine.get_recommendations(tags, segment, city)
+        trending = recommendation_engine.get_trending(city)
+        return {
+            "customer": customer_info,
+            "tags": tags,
+            "recommended": recommended[:8],
+            "deals": [],
+            "trending": trending[:6],
+        }
 
     candidate_ids = [p["id"] for p in candidates]
 
@@ -328,7 +357,7 @@ def for_you(customer_id: str):
                 "id": p["id"],
                 "name": p["name"],
                 "price": p["price"],
-                "reason": reason_for_product(p,tags)
+                "reason": reason_for_product(p, tags)
             }
         )
 
@@ -349,21 +378,12 @@ def for_you(customer_id: str):
                     p["price"] * (1 - offer["discount_pct"] / 100)
                 ),
                 "pitch": pitch_for_product(
-    p,
-    tags,
-    offer["discount_pct"]
-),
+                    p,
+                    tags,
+                    offer["discount_pct"]
+                ),
             }
         )
-
-        print(
-    p["name"],
-    pitch_for_product(
-        p,
-        tags,
-        offer["discount_pct"]
-    )
-)
 
     try:
 
@@ -404,11 +424,15 @@ def for_you(customer_id: str):
     except Exception:
         pass
 
+    # Generate trending using rules engine
+    trending = recommendation_engine.get_trending(city)
+
     return {
-        "customer_id": customer_id,
+        "customer": customer_info,
         "tags": tags,
         "recommended": recommended,
         "deals": deals,
+        "trending": trending[:6],
     }
 
 @app.get("/api/predicted")
@@ -537,21 +561,24 @@ def _score_product(product: dict, tags: list[str]) -> int:
 
 
 def _default_foryou(customer_id: str):
-    popular = catalog.CATALOG[:5]
+    demo_persona = persona.get_demo_persona(customer_id)
+    segment = demo_persona["segment"] if demo_persona else "working"
+
+    customer_info = {
+        "id": customer_id,
+        "name": demo_persona["name"] if demo_persona else customer_id,
+        "segment": segment,
+    }
+
+    recommended = recommendation_engine.get_recommendations([], segment)
+    trending = recommendation_engine.get_trending()
 
     return {
-        "customer_id": customer_id,
+        "customer": customer_info,
         "tags": [],
-        "recommended": [
-            {
-                "id": p["id"],
-                "name": p["name"],
-                "price": p["price"],
-                "reason": "Popular choice",
-            }
-            for p in popular
-        ],
+        "recommended": recommended[:8],
         "deals": [],
+        "trending": trending[:6],
     }
 
 

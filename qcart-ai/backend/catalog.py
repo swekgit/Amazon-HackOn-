@@ -201,13 +201,12 @@ def enrich(product_id: str, quantity: int, reason: str = "") -> dict | None:
 def find_alternatives(product_id: str, cart_ids: set[str]) -> dict:
 
     current = BY_ID.get(product_id)
-    print("CURRENT =", current)
-    print("SWAP =", current.get("swap_group") if current else None)
 
     if not current:
         return {
             "cheaper": None,
             "premium": None,
+            "alternatives": [],
         }
 
     swap_group = current.get("swap_group")
@@ -216,6 +215,7 @@ def find_alternatives(product_id: str, cart_ids: set[str]) -> dict:
         return {
             "cheaper": None,
             "premium": None,
+            "alternatives": [],
         }
 
     current_price = current["price"]
@@ -246,7 +246,6 @@ def find_alternatives(product_id: str, cart_ids: set[str]) -> dict:
             cheaper_candidates,
             key=lambda p: p["price"]
         )
-
         cheaper = {
             "id": best["id"],
             "name": best["name"],
@@ -258,14 +257,46 @@ def find_alternatives(product_id: str, cart_ids: set[str]) -> dict:
             premium_candidates,
             key=lambda p: p["price"]
         )
-
         premium = {
             "id": best["id"],
             "name": best["name"],
             "price": best["price"],
         }
 
+    # New: structured alternatives list (max 3)
+    # Priority: 1) cheaper, 2) prime eligible, 3) highest rating
+    scored_alts = []
+    for p in candidates:
+        reason = ""
+        priority = 0
+
+        if p["price"] < current_price:
+            reason = "cheaper"
+            priority = 3
+        elif p.get("prime_eligible"):
+            reason = "faster"
+            priority = 2
+        else:
+            # Skip items that are neither cheaper nor prime_eligible
+            continue
+
+        scored_alts.append((priority, p.get("rating", 0), p, reason))
+
+    # Sort by priority desc, then rating desc
+    scored_alts.sort(key=lambda x: (-x[0], -x[1]))
+
+    alternatives = []
+    for _, _, p, reason in scored_alts[:3]:
+        alternatives.append({
+            "id": p["id"],
+            "name": p["name"],
+            "brand": p.get("brand", ""),
+            "price": p["price"],
+            "reason": reason,
+        })
+
     return {
         "cheaper": cheaper,
         "premium": premium,
+        "alternatives": alternatives,
     }
