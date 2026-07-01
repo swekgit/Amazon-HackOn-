@@ -278,15 +278,18 @@ def main():
             logger.info("-" * 60)
             if len(missing_files) == total:
                 logger.info("  No images detected at all.")
-                logger.info("  Option 1: python download_rainforest.py")
-                logger.info("  Option 2: python fill_placeholders.py  (fast, uses placeholder)")
+                logger.info("  Step 1: python download_google_images.py")
+                logger.info("  Step 2: python download_serpapi.py")
+                logger.info("  Step 3: python fill_placeholders.py")
             elif len(missing_files) > total * 0.5:
                 logger.info(f"  {len(missing_files)}/{total} images missing (>{50}%).")
-                logger.info("  Recommended: python download_rainforest.py")
+                logger.info("  Recommended: python download_google_images.py")
+                logger.info("  Then:        python download_serpapi.py")
                 logger.info("  Then:        python fill_placeholders.py")
             else:
                 logger.info(f"  {len(missing_files)}/{total} images missing.")
-                logger.info("  Recommended: python fill_placeholders.py")
+                logger.info("  Recommended: python download_serpapi.py")
+                logger.info("  Then:        python fill_placeholders.py")
             logger.info("-" * 60)
 
         sys.exit(1)

@@ -18,6 +18,22 @@ load_dotenv(_ENV_PATH)
 RAINFOREST_API_KEY: str = os.getenv("RAINFOREST_API_KEY", "")
 AMAZON_DOMAIN: str = os.getenv("AMAZON_DOMAIN", "amazon.in")
 
+# ─── Google Custom Search API ─────────────────────────────
+GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
+GOOGLE_SEARCH_ENGINE_ID: str = os.getenv("GOOGLE_SEARCH_ENGINE_ID", "")
+MAX_GOOGLE_REQUESTS: int = int(os.getenv("MAX_GOOGLE_REQUESTS", "100"))
+GOOGLE_RATE_LIMIT: float = float(os.getenv("GOOGLE_RATE_LIMIT", "1"))
+
+# ─── Bing Image Search API ────────────────────────────────
+BING_API_KEY: str = os.getenv("BING_API_KEY", "")
+MAX_BING_REQUESTS: int = int(os.getenv("MAX_BING_REQUESTS", "100"))
+BING_RATE_LIMIT: float = float(os.getenv("BING_RATE_LIMIT", "1"))
+
+# ─── SerpAPI ─────────────────────────────────────────────
+SERP_API_KEY: str = os.getenv("SERP_API_KEY", "")
+MAX_SERP_REQUESTS: int = int(os.getenv("MAX_SERP_REQUESTS", "100"))
+SERP_RATE_LIMIT: float = float(os.getenv("SERP_RATE_LIMIT", "1"))
+
 # ─── AWS ──────────────────────────────────────────────────
 AWS_REGION: str = os.getenv("AWS_REGION", "ap-south-1")
 S3_BUCKET: str = os.getenv("S3_BUCKET", "qcart-product-images")

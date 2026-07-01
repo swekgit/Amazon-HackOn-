@@ -48,19 +48,20 @@ def main():
     # Load log files
     off_downloaded = load_json_safe(LOG_FOLDER / "downloaded_products.json", [])
     rf_downloaded = load_json_safe(LOG_FOLDER / "rainforest_downloaded.json", [])
-    rf_progress = load_json_safe(LOG_FOLDER / "rainforest_progress.json", {})
-    rf_cache = load_json_safe(LOG_FOLDER / "rainforest_cache.json", {})
+    google_downloaded = load_json_safe(LOG_FOLDER / "google_downloaded.json", [])
+    serp_downloaded = load_json_safe(LOG_FOLDER / "serp_downloaded.json", [])
     missing = load_json_safe(LOG_FOLDER / "missing_products.json", [])
 
     off_count = len(off_downloaded) if isinstance(off_downloaded, list) else 0
     rf_count = len([r for r in rf_downloaded if isinstance(r, dict) and r.get("status") == "downloaded"])
-    api_calls_total = rf_progress.get("total_api_calls", 0)
+    google_count = len([r for r in google_downloaded if isinstance(r, dict) and r.get("status") == "downloaded"])
+    serp_count = len([r for r in serp_downloaded if isinstance(r, dict) and r.get("status") == "downloaded"])
 
     # Ready for S3?
     ready_for_s3 = len(products_without_images) == 0
 
     # Generate report
-    report = f"""# QCart AI — Pipeline Status
+    report = f"""# QCart AI -- Pipeline Status
 
 Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
@@ -73,23 +74,17 @@ Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 | Missing Images | {len(products_without_images)} |
 | Coverage | {len(products_with_images) / total * 100:.1f}% |
 
-## Image Sources
+## Image Sources (Active Pipeline)
 
 | Source | Count | Percentage |
 |--------|-------|------------|
 | OpenFoodFacts | {off_count} | {off_count / total * 100:.1f}% |
-| Rainforest API | {rf_count} | {rf_count / total * 100:.1f}% |
+| Google Custom Search | {google_count} | {google_count / total * 100:.1f}% |
+| SerpAPI | {serp_count} | {serp_count / total * 100:.1f}% |
+| Rainforest API (bypassed) | {rf_count} | {rf_count / total * 100:.1f}% |
 | Placeholders | {placeholders} | {placeholders / total * 100:.1f}% |
-| Real Images | {real_images} | {real_images / total * 100:.1f}% |
+| Real Images (total) | {real_images} | {real_images / total * 100:.1f}% |
 | Still Missing | {len(products_without_images)} | {len(products_without_images) / total * 100:.1f}% |
-
-## API Usage
-
-| Metric | Value |
-|--------|-------|
-| Rainforest API Calls (total) | {api_calls_total} |
-| Cached Responses | {len(rf_cache)} |
-| Products in Queue | {len(missing)} |
 
 ## Status
 
@@ -103,14 +98,15 @@ Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 """
 
     if len(products_without_images) > 0:
-        report += f"""- [ ] Run `python download_rainforest.py` ({len(products_without_images)} products need images)
+        report += f"""- [ ] Run `python download_google_images.py` ({len(products_without_images)} products need images)
+- [ ] Run `python download_serpapi.py`
 - [ ] Run `python fill_placeholders.py` (guarantee 100% coverage)
 - [ ] Run `python verify_dataset.py`
 - [ ] Run `python upload_s3.py`
 """
     elif placeholders > 0:
         report += f"""- [x] All products have images
-- [ ] Consider running Rainforest to replace {placeholders} placeholders with real images
+- [ ] Consider running Google/SerpAPI to replace {placeholders} placeholders with real images
 - [ ] Run `python upload_s3.py`
 """
     else:
