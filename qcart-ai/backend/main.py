@@ -119,85 +119,96 @@ def cart_turn(turn: CartTurn):
     if cached:
         return {**cached, "cached": True}
 
-    # 2) brain
-    try:
-        result = brain.think(message, turn.cart)
-    except json.JSONDecodeError:
-        raise HTTPException(502, "Brain returned malformed data, try again.")
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(502, f"Could not reach the brain: {exc}")
+    # ── Recipe-to-cart detection (Task 1) ──────────────────────────────────────
+    recipe_meta = brain.detect_recipe(message)
+    recipe_result = None
 
-    # 2b) Apply fallback defaults for any missing keys
-    FALLBACK_DEFAULTS = {
-    "reply": "Here's your cart.",
-    "context": "routine",
-    "urgency": "normal",
-    "cart": [],
-    "suggestions": [],
-    "readiness": {
-        "label": "",
-        "essentials": []
-    }
-}
-    for key, default in FALLBACK_DEFAULTS.items():
-        if key not in result:
-            result[key] = default
+    if recipe_meta["is_recipe"]:
+        recipe_result, cart_lines, suggestions = _handle_recipe(recipe_meta, turn.cart)
+        # Build a minimal brain-style result so the rest of the flow can run
+        result = {
+            "reply":     f"Here's your cart for {recipe_meta['dish']}!",
+            "context":   "routine",
+            "urgency":   "normal",
+            "cart":      [],          # already enriched above
+            "suggestions": [],
+            "readiness": {"label": "", "essentials": []},
+        }
+    else:
+        # 2) brain — normal conversational path
+        try:
+            result = brain.think(message, turn.cart)
+        except json.JSONDecodeError:
+            raise HTTPException(502, "Brain returned malformed data, try again.")
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(502, f"Could not reach the brain: {exc}")
 
-    # 2c) Validate urgency and context values
-    VALID_URGENCY = {"high", "normal"}
-    VALID_CONTEXT = {"movie_night", "party", "health", "baby", "routine", "late_night", "other"}
+        # 2b) Apply fallback defaults for any missing keys
+        FALLBACK_DEFAULTS = {
+            "reply": "Here's your cart.",
+            "context": "routine",
+            "urgency": "normal",
+            "cart": [],
+            "suggestions": [],
+            "readiness": {
+                "label": "",
+                "essentials": []
+            }
+        }
+        for key, default in FALLBACK_DEFAULTS.items():
+            if key not in result:
+                result[key] = default
 
-    if result["urgency"] not in VALID_URGENCY:
-        result["urgency"] = "normal"
-    if result["context"] not in VALID_CONTEXT:
-        result["context"] = "routine"
+        # 2c) Validate urgency and context values
+        VALID_URGENCY = {"high", "normal"}
+        VALID_CONTEXT = {"movie_night", "party", "health", "baby", "routine", "late_night", "other"}
 
-    # 3) validate + enrich cart
-    cart_lines = []
+        if result["urgency"] not in VALID_URGENCY:
+            result["urgency"] = "normal"
+        if result["context"] not in VALID_CONTEXT:
+            result["context"] = "routine"
 
-    cart_product_ids = {
-    item.get("product_id")
-    for item in result["cart"]
-    if item.get("product_id")
-}
+        # 3) validate + enrich cart
+        cart_lines = []
 
-    for picked in result["cart"]:
-        line = catalog.enrich(
-            picked.get("product_id"),
-            picked.get("quantity", 1),
-            picked.get("reason", ""),
-        )
+        cart_product_ids = {
+            item.get("product_id")
+            for item in result["cart"]
+            if item.get("product_id")
+        }
 
-        if not line:
-            continue
+        for picked in result["cart"]:
+            line = catalog.enrich(
+                picked.get("product_id"),
+                picked.get("quantity", 1),
+                picked.get("reason", ""),
+            )
 
-        line["alternatives"] = catalog.find_alternatives(
-        line["id"],
-        cart_product_ids,
-)
+            if not line:
+                continue
 
-        cart_lines.append(line)
+            line["alternatives"] = catalog.find_alternatives(
+                line["id"],
+                cart_product_ids,
+            )
 
-    if not cart_lines:
-        raise HTTPException(404, "Couldn't match anything. Try rephrasing.")
+            cart_lines.append(line)
 
-    # 4) suggestions (validate ids)
-    # 4) suggestions (validate ids)
+        if not cart_lines:
+            raise HTTPException(404, "Couldn't match anything. Try rephrasing.")
 
-    suggestions = []
-
-    in_cart = {l["id"] for l in cart_lines}
-
-    for s in result["suggestions"]:
-        p = catalog.get(s.get("product_id"))
-
-        if p and p["id"] not in in_cart:
-            suggestions.append({
-                "id": p["id"],
-                "name": p["name"],
-                "price": p["price"],
-                "reason": s.get("reason", "")
-            })
+        # 4) suggestions (validate ids)
+        suggestions = []
+        in_cart = {l["id"] for l in cart_lines}
+        for s in result["suggestions"]:
+            p = catalog.get(s.get("product_id"))
+            if p and p["id"] not in in_cart:
+                suggestions.append({
+                    "id": p["id"],
+                    "name": p["name"],
+                    "price": p["price"],
+                    "reason": s.get("reason", "")
+                })
 
     context = result["context"]
 
@@ -242,21 +253,105 @@ def cart_turn(turn: CartTurn):
     gap_info = gap.compute(cart_lines, context)
 
     payload = {
-        "reply": result["reply"],
-        "context": context,
-        "urgency": result["urgency"],
-        "cart": cart_lines,
-        "suggestions": suggestions[:2],
-        "readiness": readiness,
-        "subtotal": subtotal,
+        "reply":                   result["reply"],
+        "context":                 context,
+        "urgency":                 result["urgency"],
+        "cart":                    cart_lines,
+        "recipe":                  recipe_result,
+        "suggestions":             suggestions[:2],
+        "readiness":               readiness,
+        "subtotal":                subtotal,
         "free_delivery_threshold": gap.FREE_DELIVERY_THRESHOLD,
-        "gap_amount": gap_info["gap_amount"],
-        "gap_fillers": gap_info["gap_fillers"],
-        "cached": False,
+        "gap_amount":              gap_info["gap_amount"],
+        "gap_fillers":             gap_info["gap_fillers"],
+        "payment_offers":          [],
+        "saved_payments":          [],
+        "cached":                  False,
     }
 
     cache.set(message, turn.cart, payload)
     return payload
+
+
+def _handle_recipe(recipe_meta: dict, current_cart: list) -> tuple[dict, list, list]:
+    """Process a recipe request end-to-end.
+
+    1. Extract ingredients from dish + servings via LLM.
+    2. Remove already-have items.
+    3. Map remaining ingredients to real catalog products via keyword retrieval.
+    4. Enrich matched products into cart lines.
+
+    Returns (recipe_block, cart_lines, suggestions).
+    Never invents product ids.
+    """
+    dish         = recipe_meta["dish"] or "the dish"
+    servings     = int(recipe_meta["servings"] or 2)
+    already_have = {a.lower().strip() for a in recipe_meta.get("already_have", [])}
+
+    # Step 1: get ingredients from LLM
+    ingredients = brain.extract_recipe_ingredients(dish, servings)
+
+    # Step 2: split into needed vs. skipped
+    needed  = []
+    skipped = []
+
+    for ing in ingredients:
+        ing_lower = ing.lower().strip()
+        # Check if user said they already have it
+        if any(ah in ing_lower or ing_lower in ah for ah in already_have):
+            skipped.append({"name": ing, "why": "already have"})
+        else:
+            needed.append(ing)
+
+    # Step 3: map each needed ingredient to a catalog product
+    cart_product_ids: set[str] = set()
+    cart_lines: list[dict]     = []
+    unmatched: list[str]       = []
+
+    for ing in needed:
+        # Retrieve top candidates for this ingredient
+        candidates_json = catalog.retrieve(ing, limit=30)
+        candidates: list[dict] = json.loads(candidates_json)
+
+        if not candidates:
+            unmatched.append(ing)
+            continue
+
+        # Pick the best match: prioritise keyword match in name, then first result
+        ing_lower = ing.lower()
+        best = None
+        for c in candidates:
+            name_lower = c["name"].lower()
+            if ing_lower in name_lower or any(w in name_lower for w in ing_lower.split()):
+                best = c
+                break
+
+        if best is None:
+            # No strong match — silently skip; do NOT invent
+            unmatched.append(ing)
+            continue
+
+        # Avoid duplicate product ids
+        if best["id"] in cart_product_ids:
+            continue
+
+        line = catalog.enrich(best["id"], 1, f"for {dish}")
+        if not line:
+            unmatched.append(ing)
+            continue
+
+        line["alternatives"] = catalog.find_alternatives(best["id"], cart_product_ids)
+        cart_product_ids.add(best["id"])
+        cart_lines.append(line)
+
+    recipe_block = {
+        "is_recipe": True,
+        "dish":      dish,
+        "servings":  servings,
+        "skipped":   skipped,
+    }
+
+    return recipe_block, cart_lines, []
 
 @app.get("/api/foryou")
 def for_you(customer_id: str, city: str = DEFAULT_CITY):

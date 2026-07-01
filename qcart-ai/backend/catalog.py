@@ -2,11 +2,27 @@
 This is the data layer the rest of the backend builds on."""
 
 import json
+import logging
+import os
 from pathlib import Path
 
 import db
 
+log = logging.getLogger(__name__)
+
 DATA = Path(__file__).parent / "data"
+
+# ─── S3 image base URL ────────────────────────────────────────────────────────
+_IMAGE_BASE = "https://qcart-ai-apoorva-images.s3.ap-south-1.amazonaws.com/products/"
+
+# ─── OpenSearch config (optional — falls back to keyword if not set) ──────────
+_OS_ENDPOINT = os.getenv("OPENSEARCH_ENDPOINT", "").strip()
+_OS_INDEX    = os.getenv("OPENSEARCH_INDEX", "qcart-products")
+_EMBED_MODEL = os.getenv(
+    "BEDROCK_EMBED_MODEL",
+    "amazon.titan-embed-text-v2:0",
+)
+_EMBED_REGION = os.getenv("BEDROCK_EMBED_REGION", "us-east-1")
 
 
 def get_catalog() -> list[dict]:
@@ -26,6 +42,9 @@ def get_catalog() -> list[dict]:
 
     # Fallback: load from local JSON file
     products_data = json.loads((DATA / "products.json").read_text())
+    # products.json may be a plain list or {"products": [...]}
+    if isinstance(products_data, list):
+        return products_data
     return products_data.get("products", [])
 
 
@@ -77,31 +96,109 @@ def _extract_keywords(intent: str) -> set:
     return {w for w in words if w not in _STOPWORDS and len(w) > 1}
 
 
-def retrieve(intent: str, limit: int = 40) -> str:
-    """Return a compact JSON catalog subset relevant to the user intent.
+def _row(p: dict) -> dict:
+    """Compact product row returned to the LLM — includes all required fields."""
+    return {
+        "id":         p["id"],
+        "name":       p["name"],
+        "category":   p["category"],
+        "swap_group": p.get("swap_group"),
+        "brand":      p.get("brand", ""),
+        "price":      p["price"],
+        "tags":       p["tags"],
+    }
 
-    For refinement commands (premium, cheaper, dairy), ensures swap targets
-    are included. Falls back to full catalog if fewer than 10 products match.
-    """
+
+# ─── OpenSearch vector retrieval (primary) ────────────────────────────────────
+
+def _embed(text: str) -> list[float] | None:
+    """Generate a Bedrock embedding for text. Returns None on any failure."""
+    try:
+        import boto3
+        client = boto3.client("bedrock-runtime", region_name=_EMBED_REGION)
+        body = json.dumps({"inputText": text})
+        response = client.invoke_model(
+            modelId=_EMBED_MODEL,
+            body=body,
+            contentType="application/json",
+            accept="application/json",
+        )
+        result = json.loads(response["body"].read())
+        return result.get("embedding")
+    except Exception as exc:
+        log.warning("Bedrock embed failed: %s", exc)
+        return None
+
+
+def _opensearch_retrieve(intent: str, limit: int) -> list[dict] | None:
+    """Vector search via OpenSearch. Returns product list or None on failure."""
+    if not _OS_ENDPOINT:
+        return None
+    try:
+        from opensearchpy import OpenSearch, RequestsHttpConnection
+        from requests_aws4auth import AWS4Auth
+        import boto3
+
+        session = boto3.Session()
+        credentials = session.get_credentials()
+        region = os.getenv("OPENSEARCH_REGION", _EMBED_REGION)
+        awsauth = AWS4Auth(
+            credentials.access_key,
+            credentials.secret_key,
+            region,
+            "es",
+            session_token=credentials.token,
+        )
+        client = OpenSearch(
+            hosts=[{"host": _OS_ENDPOINT, "port": 443}],
+            http_auth=awsauth,
+            use_ssl=True,
+            verify_certs=True,
+            connection_class=RequestsHttpConnection,
+            timeout=5,
+        )
+
+        vector = _embed(intent)
+        if vector is None:
+            return None
+
+        query = {
+            "size": limit,
+            "query": {
+                "knn": {
+                    "embedding": {
+                        "vector": vector,
+                        "k": limit,
+                    }
+                }
+            },
+            "_source": ["id", "name", "category", "swap_group", "brand", "price", "tags"],
+        }
+        response = client.search(index=_OS_INDEX, body=query)
+        hits = response.get("hits", {}).get("hits", [])
+        return [h["_source"] for h in hits]
+    except Exception as exc:
+        log.warning("OpenSearch retrieval failed: %s", exc)
+        return None
+
+
+# ─── Keyword retrieval (fallback) ─────────────────────────────────────────────
+
+def _keyword_retrieve(intent: str, limit: int) -> list[dict]:
+    """Keyword-based retrieval searching name, category, tags, brand."""
     intent_lower = intent.lower().strip()
     keywords = _extract_keywords(intent)
 
-    # Detect refinement commands — need broader product set
     is_premium = "premium" in keywords
     is_cheaper = "cheaper" in keywords or "cheap" in keywords
-    is_dairy = "dairy" in keywords
+    is_dairy   = "dairy" in keywords
 
     if is_premium or is_cheaper:
-        # Include all products in categories where premium/cheap alternatives exist
         target_tag = "premium" if is_premium else "cheap"
-        target_categories = {
-            p["category"] for p in CATALOG if target_tag in p["tags"]
-        }
-        # All products in those categories (so model can see from/to)
+        target_categories = {p["category"] for p in CATALOG if target_tag in p["tags"]}
         scored = []
         for p in CATALOG:
             if p["category"] in target_categories:
-                # Prioritize the target-tagged items
                 priority = 2 if target_tag in p["tags"] else 1
                 scored.append((priority, p))
             else:
@@ -110,27 +207,26 @@ def retrieve(intent: str, limit: int = 40) -> str:
         results = [p for _, p in scored[:limit]]
 
     elif is_dairy:
-        # Include all dairy-tagged + some context items
-        scored = []
-        for p in CATALOG:
-            score = 2 if "dairy" in p["tags"] else 0
-            scored.append((score, p))
+        scored = [(2 if "dairy" in p["tags"] else 0, p) for p in CATALOG]
         scored.sort(key=lambda x: -x[0])
         results = [p for _, p in scored[:limit]]
 
     else:
-        # Standard context-based retrieval
         context = _detect_context(intent_lower)
         relevant_tags = set(_INTENT_TAGS.get(context, ["snack", "staple"]))
 
         scored = []
         for p in CATALOG:
-            tag_score = len(relevant_tags.intersection(p["tags"]))
-            # Keyword match: check if any keyword appears in product tags or name
+            tag_score  = len(relevant_tags.intersection(p["tags"]))
             name_lower = p["name"].lower()
+            brand_lower = p.get("brand", "").lower()
+            cat_lower  = p["category"].lower()
             kw_score = sum(
                 1 for kw in keywords
-                if kw in p["tags"] or kw in name_lower
+                if kw in p["tags"]
+                or kw in name_lower
+                or kw in cat_lower
+                or kw in brand_lower
             )
             total = tag_score * 2 + kw_score
             scored.append((total, p))
@@ -138,15 +234,43 @@ def retrieve(intent: str, limit: int = 40) -> str:
         scored.sort(key=lambda x: -x[0])
         results = [p for _, p in scored[:limit]]
 
-    # Safety net: if too few results, fall back to full catalog
     if len(results) < 10:
         results = CATALOG[:limit]
 
-    rows = [
-        {"id": p["id"], "name": p["name"], "category": p["category"],
-         "price": p["price"], "tags": p["tags"]}
-        for p in results
-    ]
+    return results
+
+
+def retrieve(intent: str, limit: int = 40) -> str:
+    """Return a compact JSON catalog subset relevant to the user intent.
+
+    PRIMARY:  OpenSearch vector retrieval (if OPENSEARCH_ENDPOINT is set).
+    FALLBACK: Keyword retrieval (always works, never throws).
+
+    Logs which retriever was used.
+    Rows returned include: id, name, category, swap_group, brand, price, tags.
+    """
+    products = _opensearch_retrieve(intent, limit)
+
+    if products is not None:
+        log.info("Retriever used = OpenSearch")
+    else:
+        log.info("Retriever used = KeywordFallback")
+        raw = _keyword_retrieve(intent, limit)
+        products = [_row(p) for p in raw]
+
+    # Ensure every row has the required fields (OpenSearch docs may vary)
+    rows = []
+    for p in products:
+        rows.append({
+            "id":         p.get("id", ""),
+            "name":       p.get("name", ""),
+            "category":   p.get("category", ""),
+            "swap_group": p.get("swap_group"),
+            "brand":      p.get("brand", ""),
+            "price":      p.get("price", 0),
+            "tags":       p.get("tags", []),
+        })
+
     return json.dumps(rows, separators=(",", ":"))
 
 
@@ -159,18 +283,8 @@ def get(product_id: str):
 
 
 def compact_catalog() -> str:
-    """Catalog as a compact JSON string for the prompt (id/name/category/price/tags)."""
-    rows = [
-        {
-            "id": p["id"],
-            "name": p["name"],
-            "category": p["category"],
-            "swap_group": p.get("swap_group"),
-            "price": p["price"],
-            "tags": p["tags"]
-        }
-        for p in CATALOG
-    ]
+    """Catalog as a compact JSON string for the prompt (id/name/category/swap_group/brand/price/tags)."""
+    rows = [_row(p) for p in CATALOG]
     return json.dumps(rows, separators=(",", ":"))
 
 
@@ -182,20 +296,27 @@ def history_summary() -> str:
 
 
 def enrich(product_id: str, quantity: int, reason: str = "") -> dict | None:
-    """Turn a picked id into a full cart line. Returns None if id is unknown."""
+    """Turn a picked id into a full cart line. Returns None if id is unknown.
+
+    Adds brand and image fields (Task 3).
+    brand: from catalog, empty string if not present.
+    image: S3 URL constructed from product id.
+    """
     p = BY_ID.get(product_id)
     if not p:
         return None
     qty = max(1, int(quantity))
     return {
-        "id": p["id"],
-        "name": p["name"],
-        "category": p["category"],
-        "price": p["price"],
-        "tags": p["tags"],
-        "quantity": qty,
-        "reason": reason,
+        "id":         p["id"],
+        "name":       p["name"],
+        "category":   p["category"],
+        "price":      p["price"],
+        "tags":       p["tags"],
+        "quantity":   qty,
+        "reason":     reason,
         "line_total": p["price"] * qty,
+        "brand":      p.get("brand", ""),
+        "image":      f"{_IMAGE_BASE}{p['id']}.jpg",
     }
 
 def find_alternatives(product_id: str, cart_ids: set[str]) -> dict:

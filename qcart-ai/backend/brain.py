@@ -206,6 +206,80 @@ def recommend_for_you(tags, candidate_products):
     }
 
 
+_RECIPE_DETECT_PROMPT = """You are a recipe-intent classifier for a grocery cart AI.
+
+Given a user message, decide if it is a RECIPE REQUEST (the user wants to cook a dish and needs ingredients).
+
+Rules:
+- A recipe request names a dish and optionally servings or "already have" items.
+- Examples: "gajar ka halwa for 4", "make pasta for 2", "I want to cook biryani, I have rice"
+- Non-recipe: "add milk", "party snacks", "make it cheaper"
+
+Respond with ONLY valid JSON, no markdown:
+{
+  "is_recipe": true | false,
+  "dish": "<dish name or null>",
+  "servings": <integer or null>,
+  "already_have": ["<ingredient>", ...]
+}
+"""
+
+
+def detect_recipe(message: str) -> dict:
+    """Classify whether the message is a recipe request and extract metadata.
+
+    Returns dict with keys: is_recipe, dish, servings, already_have.
+    Never raises — returns is_recipe=false on any failure.
+    """
+    prompt = f"{_RECIPE_DETECT_PROMPT}\n\nUser message: {message}"
+    messages = [{"role": "user", "content": [{"text": prompt}]}]
+    try:
+        result = invoke_json(Task.INTENT_CLASSIFICATION, messages, temperature=0.1, max_tokens=300)
+        parsed = result["parsed"]
+        return {
+            "is_recipe":    bool(parsed.get("is_recipe", False)),
+            "dish":         parsed.get("dish"),
+            "servings":     parsed.get("servings"),
+            "already_have": parsed.get("already_have") or [],
+        }
+    except Exception:
+        return {"is_recipe": False, "dish": None, "servings": None, "already_have": []}
+
+
+_RECIPE_INGREDIENTS_PROMPT = """You are a recipe ingredient extractor for a grocery cart AI.
+
+Given a dish name and number of servings, return the SCALED ingredient list.
+
+Rules:
+- Scale quantities proportionally to the given servings (base recipe = 2 servings).
+- Return ONLY ingredient names the user would buy at a grocery store (e.g. "carrots", "milk", "sugar", "ghee").
+- Do NOT include cooking equipment or water.
+- Keep names simple and generic (no brand names).
+
+Respond with ONLY valid JSON, no markdown:
+{
+  "ingredients": ["<ingredient>", "<ingredient>", ...]
+}
+"""
+
+
+def extract_recipe_ingredients(dish: str, servings: int) -> list[str]:
+    """Ask the LLM for the grocery ingredients for a dish scaled to servings.
+
+    Returns list of ingredient name strings. Never raises.
+    """
+    prompt = (
+        f"{_RECIPE_INGREDIENTS_PROMPT}\n\n"
+        f"Dish: {dish}\nServings: {servings}"
+    )
+    messages = [{"role": "user", "content": [{"text": prompt}]}]
+    try:
+        result = invoke_json(Task.INTENT_CLASSIFICATION, messages, temperature=0.1, max_tokens=400)
+        return result["parsed"].get("ingredients") or []
+    except Exception:
+        return []
+
+
 def personalize_copy(
     tags: list[str],
     recommended_products: list[dict],

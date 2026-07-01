@@ -16,6 +16,9 @@ export function AppProvider({ children }) {
   suggestions: [],
   readiness: null,
   buildTime: null,
+  recipe: null,
+  paymentOffers: [],
+  savedPayments: [],
 });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -92,6 +95,9 @@ export function AppProvider({ children }) {
           suggestions: res.suggestions || [],
           readiness: res.readiness || null,
           buildTime,
+          recipe: res.recipe || null,
+          paymentOffers: res.payment_offers || [],
+          savedPayments: res.saved_payments || [],
         });
         setMessages((m) => [...m, { role: "assistant", text: res.reply }]);
         // Auto-open cart on first build

@@ -1,11 +1,56 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ShoppingCart, Zap, Plus, CheckCircle2, Sparkles, Trash2, Truck, Clock, Check } from "lucide-react";
+import { X, ShoppingCart, Zap, Plus, CheckCircle2, Sparkles, Trash2, Truck, Clock, Check, CreditCard, Tag } from "lucide-react";
 import { useApp } from "../state/AppContext.jsx";
 import CartItem from "./CartItem.jsx";
 import GapNudge from "./GapNudge.jsx";
 import { formatINR } from "../lib/format.js";
 import ReadinessPanel from "./ReadinessPanel.jsx";
+import RecipeCard from "./RecipeCard.jsx";
+
+/* ── Payment Offers + Saved Payments (Task 4) ──────────────── */
+function PaymentExtras({ paymentOffers, savedPayments }) {
+  if (!paymentOffers?.length && !savedPayments?.length) return null;
+  return (
+    <div className="space-y-3">
+      {paymentOffers?.length > 0 && (
+        <div>
+          <p className="text-[10px] font-semibold text-muted uppercase tracking-wider mb-1.5 flex items-center gap-1">
+            <Tag size={10} /> Offers
+          </p>
+          <div className="space-y-1.5">
+            {paymentOffers.slice(0, 3).map((offer) => (
+              <div key={offer.id} className="flex items-center justify-between rounded-xl bg-fresh-soft/60 px-3 py-2 ring-1 ring-fresh/10">
+                <span className="text-xs font-medium text-fresh">{offer.title}</span>
+                {offer.savings > 0 && (
+                  <span className="text-[10px] font-bold text-fresh">Save {formatINR(offer.savings)}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {savedPayments?.length > 0 && (
+        <div>
+          <p className="text-[10px] font-semibold text-muted uppercase tracking-wider mb-1.5 flex items-center gap-1">
+            <CreditCard size={10} /> Pay with
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {savedPayments.slice(0, 3).map((pm) => (
+              <button
+                key={pm.id}
+                className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-medium text-ink ring-1 ring-line hover:ring-brand/30 transition"
+              >
+                <span>{pm.icon}</span>
+                {pm.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /* ── Clear-Cart Confirmation Modal ─────────────────────────── */
 function ClearCartModal({ onConfirm, onCancel }) {
@@ -280,6 +325,19 @@ export default function CartDrawer() {
 
                 {/* Gap Nudge */}
                 <GapNudge gapAmount={gapAmount} fillers={meta.gapFillers} onAdd={addProduct} threshold={meta.threshold} subtotal={subtotal} />
+
+                {/* Recipe Card */}
+                {meta.recipe && (
+                  <RecipeCard recipe={meta.recipe} />
+                )}
+
+                {/* Payment Offers + Saved Payments */}
+                {hasCart && (
+                  <PaymentExtras
+                    paymentOffers={meta.paymentOffers}
+                    savedPayments={meta.savedPayments}
+                  />
+                )}
 
                 {/* Empty state */}
                 {!hasCart && (
