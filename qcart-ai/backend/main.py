@@ -274,64 +274,50 @@ def cart_turn(turn: CartTurn):
 
 
 def _handle_recipe(recipe_meta: dict, current_cart: list) -> tuple[dict, list, list]:
-    """Process a recipe request end-to-end.
+    """Process a recipe request end-to-end via semantic ingredient resolution.
 
-    1. Extract ingredients from dish + servings via LLM.
-    2. Remove already-have items.
-    3. Map remaining ingredients to real catalog products via keyword retrieval.
-    4. Enrich matched products into cart lines.
+    1. Resolve each already_have item to its swap_group via Titan embeddings.
+    2. Extract ingredient list for dish + servings via LLM.
+    3. For each ingredient, call catalog.resolve_ingredient() (confidence-gated).
+       - If resolve returns None → ingredient goes to unmatched (no wrong product added).
+       - If swap_group is in already-have set → skipped.
+       - Otherwise → enrich + add to cart.
 
     Returns (recipe_block, cart_lines, suggestions).
     Never invents product ids.
     """
-    dish         = recipe_meta["dish"] or "the dish"
-    servings     = int(recipe_meta["servings"] or 2)
-    already_have = {a.lower().strip() for a in recipe_meta.get("already_have", [])}
+    dish     = recipe_meta["dish"] or "the dish"
+    servings = int(recipe_meta["servings"] or 2)
 
-    # Step 1: get ingredients from LLM
+    # Step 1: resolve already-have items to swap_groups semantically
+    have_groups: set[str] = set()
+    for item in recipe_meta.get("already_have", []):
+        r = catalog.resolve_ingredient(item)
+        if r:
+            have_groups.add(r["swap_group"])
+
+    # Step 2: get ingredient list from LLM
     ingredients = brain.extract_recipe_ingredients(dish, servings)
 
-    # Step 2: split into needed vs. skipped
-    needed  = []
-    skipped = []
+    cart_product_ids: set[str] = set()
+    cart_lines:       list[dict] = []
+    skipped:          list[dict] = []
+    unmatched:        list[str]  = []
 
     for ing in ingredients:
-        ing_lower = ing.lower().strip()
-        # Check if user said they already have it
-        if any(ah in ing_lower or ing_lower in ah for ah in already_have):
+        # Step 3: semantic resolve with confidence gates
+        r = catalog.resolve_ingredient(ing)
+        if not r:
+            # No confident match → omit cleanly; do NOT add a wrong product
+            unmatched.append(ing)
+            continue
+
+        # Already-have check is swap_group based (semantic, not string matching)
+        if r["swap_group"] in have_groups:
             skipped.append({"name": ing, "why": "already have"})
-        else:
-            needed.append(ing)
-
-    # Step 3: map each needed ingredient to a catalog product
-    cart_product_ids: set[str] = set()
-    cart_lines: list[dict]     = []
-    unmatched: list[str]       = []
-
-    for ing in needed:
-        # Retrieve top candidates for this ingredient
-        candidates_json = catalog.retrieve(ing, limit=30)
-        candidates: list[dict] = json.loads(candidates_json)
-
-        if not candidates:
-            unmatched.append(ing)
             continue
 
-        # Pick the best match: prioritise keyword match in name, then first result
-        ing_lower = ing.lower()
-        best = None
-        for c in candidates:
-            name_lower = c["name"].lower()
-            if ing_lower in name_lower or any(w in name_lower for w in ing_lower.split()):
-                best = c
-                break
-
-        if best is None:
-            # No strong match — silently skip; do NOT invent
-            unmatched.append(ing)
-            continue
-
-        # Avoid duplicate product ids
+        best = r["product"]
         if best["id"] in cart_product_ids:
             continue
 

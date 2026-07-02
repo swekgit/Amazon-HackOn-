@@ -212,8 +212,22 @@ Given a user message, decide if it is a RECIPE REQUEST (the user wants to cook a
 
 Rules:
 - A recipe request names a dish and optionally servings or "already have" items.
-- Examples: "gajar ka halwa for 4", "make pasta for 2", "I want to cook biryani, I have rice"
-- Non-recipe: "add milk", "party snacks", "make it cheaper"
+- Users often write in Hinglish. Recognise these "already have" patterns:
+    "<item> already hai", "<item> hai", "<item> ghar pe hai",
+    "<item> aur <item> ghar pe hai", "I have <item>", "I already have <item>"
+- Extract every already-have item as a simple English grocery word (e.g. "ghee", "rice", "sugar").
+- Examples:
+    "gajar ka halwa for 4, ghee already hai"
+        → dish: "gajar ka halwa", servings: 4, already_have: ["ghee"]
+    "biryani for 6, rice aur ghee ghar pe hai"
+        → dish: "biryani", servings: 6, already_have: ["rice", "ghee"]
+    "kheer for 4, rice aur milk ghar pe hai"
+        → dish: "kheer", servings: 4, already_have: ["rice", "milk"]
+    "aloo paratha for 4, atta hai"
+        → dish: "aloo paratha", servings: 4, already_have: ["atta"]
+    "sooji halwa for 2, ghee ghar pe"
+        → dish: "sooji halwa", servings: 2, already_have: ["ghee"]
+- Non-recipe messages: "add milk", "party snacks", "make it cheaper"
 
 Respond with ONLY valid JSON, no markdown:
 {
@@ -252,9 +266,12 @@ Given a dish name and number of servings, return the SCALED ingredient list.
 
 Rules:
 - Scale quantities proportionally to the given servings (base recipe = 2 servings).
-- Return ONLY ingredient names the user would buy at a grocery store (e.g. "carrots", "milk", "sugar", "ghee").
+- Return ONLY ingredient names the user would buy at a grocery store
+  (e.g. "carrots", "milk", "sugar", "ghee", "cashews", "almonds").
 - Do NOT include cooking equipment or water.
 - Keep names simple and generic (no brand names).
+- For nuts and dry fruits, name the SPECIFIC item — never use the generic term
+  "dry fruits". Use "cashews", "almonds", "raisins", "pistachios", etc.
 
 Respond with ONLY valid JSON, no markdown:
 {
