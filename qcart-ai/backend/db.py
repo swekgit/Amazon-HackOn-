@@ -11,6 +11,7 @@ Import collections directly:
 
 import os
 
+import certifi
 from dotenv import load_dotenv
 from pymongo import MongoClient
 
@@ -19,7 +20,11 @@ load_dotenv()
 MONGODB_URI = os.getenv("MONGODB_URI", "")
 
 if MONGODB_URI:
-    _client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
+    _client = MongoClient(
+        MONGODB_URI,
+        serverSelectionTimeoutMS=5000,
+        tlsCAFile=certifi.where(),
+    )
     _db = _client["qcart"]
 
     # Collections — the shared contract

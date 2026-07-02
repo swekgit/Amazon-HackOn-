@@ -5,6 +5,7 @@ import json
 import logging
 import os
 from collections import defaultdict
+from functools import cmp_to_key
 from pathlib import Path
 
 import boto3
@@ -28,18 +29,16 @@ _EMBED_MODEL_ID  = "amazon.titan-embed-text-v2:0"   # 1024-dim, normalize=true
 EMBED_DIM        = 1024
 
 # ─── resolve_ingredient tunable constants ─────────────────────────────────────
-# After a clean rebuild with normalize=True + faiss+innerproduct,
-# Titan inner-product scores are in [-1, 1] (cosine similarity).
-# Typical exact-match scores: 0.85–0.97. Weak/wrong matches: 0.55–0.75.
+# OpenSearch innerproduct returns _score = 1 + cosine; we convert to cosine in
+# _knn_search. Typical correct English probes: max-cosine ~0.40–0.46; weak ~0.15–0.20.
 #
-# SIM_FLOOR   — reject if the best individual hit score < this value.
-#               Start at 0.75; lower to 0.70 if valid ingredients get dropped.
-# RESOLVE_MARGIN — winning group's summed score must beat runner-up by this factor.
-#               1.20 = 20% dominance required. Lower if valid matches are dropped.
-# RESOLVE_K   — k-NN neighbours fetched. Raise to 60 if rare groups are missed.
-RESOLVE_K         = 40     # k-NN neighbours fetched per query
-SIM_FLOOR         = 0.75   # minimum best_sim (post normalize=True rebuild)
-RESOLVE_MARGIN    = 1.10   # winning group summed score >= runner-up * MARGIN
+# SIM_FLOOR      — winning group's max-cosine must be >= this value.
+# RESOLVE_MARGIN — winner max-cosine >= runner-up max-cosine * MARGIN.
+# RESOLVE_K      — k-NN neighbours fetched per query.
+_GROUP_RANK_EPSILON = 0.01   # max-cosine tiebreak band for sum-of-cosine
+RESOLVE_K         = 40
+SIM_FLOOR         = 0.2996   # min English-correct max-cosine (rice 0.3153) * 0.95
+RESOLVE_MARGIN    = 0.8779   # min English-correct winner/runner-up ratio (sugar 0.9754) * 0.90
 
 # ─── kept for back-compat (used by old _opensearch_retrieve path) ─────────────
 _COHERE_MODEL_ID = _EMBED_MODEL_ID
@@ -204,12 +203,18 @@ def _get_os_client():
         use_ssl=True,
         verify_certs=True,
         connection_class=RequestsHttpConnection,
-        timeout=10,
+        timeout=60,
+        max_retries=3,
+        retry_on_timeout=True,
     )
 
 
 def _knn_search(qvec: list[float], k: int) -> list[dict]:
-    """Run a kNN search against the OpenSearch index. Returns scored hit dicts."""
+    """Run a kNN search against the OpenSearch index.
+
+    Returns hit dicts with true cosine similarity in ``score`` (OpenSearch
+    innerproduct returns _score = 1 + cosine).
+    """
     client = _get_os_client()
     body = {
         "size": k,
@@ -224,9 +229,47 @@ def _knn_search(qvec: list[float], k: int) -> list[dict]:
     }
     res = client.search(index=_OS_INDEX, body=body)
     return [
-        {"product": h["_source"], "score": h["_score"]}
+        {"product": h["_source"], "score": h["_score"] - 1.0}
         for h in res["hits"]["hits"]
     ]
+
+
+def _group_hits_by_swap_group(hits: list[dict]) -> tuple[
+    dict[str, float], dict[str, float], dict[str, list[dict]]
+]:
+    """Aggregate kNN hits by swap_group: max-cosine, sum-of-cosine, member hits."""
+    group_max: dict[str, float] = {}
+    group_sum: dict[str, float] = defaultdict(float)
+    group_hits: dict[str, list[dict]] = defaultdict(list)
+
+    for h in hits:
+        p  = h["product"]
+        sg = p.get("swap_group") or f'__solo::{p["id"]}'
+        cos = h["score"]
+        group_sum[sg] += cos
+        group_max[sg] = max(group_max.get(sg, float("-inf")), cos)
+        group_hits[sg].append(h)
+
+    return group_max, group_sum, group_hits
+
+
+def _rank_swap_groups(
+    group_max: dict[str, float],
+    group_sum: dict[str, float],
+    epsilon: float = _GROUP_RANK_EPSILON,
+) -> list[str]:
+    """Rank swap_groups by max cosine; sum-of-cosine tiebreak within epsilon."""
+    def _compare(a: str, b: str) -> int:
+        ma, mb = group_max[a], group_max[b]
+        if abs(ma - mb) <= epsilon:
+            sa, sb = group_sum[a], group_sum[b]
+            if sa != sb:
+                return -1 if sa > sb else 1
+        if ma != mb:
+            return -1 if ma > mb else 1
+        return 0
+
+    return sorted(group_max.keys(), key=cmp_to_key(_compare))
 
 
 def resolve_ingredient(ingredient: str, k: int = RESOLVE_K) -> dict | None:
@@ -234,15 +277,14 @@ def resolve_ingredient(ingredient: str, k: int = RESOLVE_K) -> dict | None:
 
     Algorithm:
     1. Embed the ingredient text with Titan (normalize=True, dims=1024).
-    2. k-NN search in OpenSearch (k=RESOLVE_K) → hits with raw similarity scores.
-    3. Group hits by swap_group, summing their scores (group voting).
-    4. Apply TWO numeric confidence gates — no hardcoded per-ingredient logic:
-         (a) best_sim >= SIM_FLOOR  — absolute minimum confidence
-         (b) winning_group_sum >= second_best_group_sum * RESOLVE_MARGIN
-             — the winner must clearly dominate the runner-up
+    2. k-NN search in OpenSearch (k=RESOLVE_K) → hits with true cosine scores.
+    3. Group hits by swap_group; rank groups by MAX cosine (sum tiebreak within ε).
+    4. Apply TWO numeric confidence gates in cosine space:
+         (a) winner max-cosine >= SIM_FLOOR
+         (b) winner max-cosine >= runner-up max-cosine * RESOLVE_MARGIN
        If either gate fails → return None (caller puts ingredient in unmatched).
-    5. Within the winning group: prefer in_stock, then rank by raw similarity
-       with small boosts for prime_eligible and rating.
+    5. Within the winning group: in-stock filter, then rank by cosine with small
+       prime/rating boosts.
 
     Returns:
         {"swap_group": str, "product": dict, "alternatives": list[dict]}
@@ -256,25 +298,13 @@ def resolve_ingredient(ingredient: str, k: int = RESOLVE_K) -> dict | None:
         if not hits:
             return None
 
-        # Group voting
-        group_score: dict[str, float]      = defaultdict(float)
-        group_hits:  dict[str, list[dict]] = defaultdict(list)
+        group_max, group_sum, group_hits = _group_hits_by_swap_group(hits)
+        ranked_groups = _rank_swap_groups(group_max, group_sum)
+        best_group = ranked_groups[0]
+        best_sim   = group_max[best_group]
+        runner_max = group_max[ranked_groups[1]] if len(ranked_groups) > 1 else 0.0
 
-        for h in hits:
-            p  = h["product"]
-            sg = p.get("swap_group") or f'__solo::{p["id"]}'
-            group_score[sg] += h["score"]
-            group_hits[sg].append(h)
-
-        # Find best group
-        ranked_groups = sorted(group_score.items(), key=lambda kv: -kv[1])
-        best_group, best_sum = ranked_groups[0]
-        second_sum = ranked_groups[1][1] if len(ranked_groups) > 1 else 0.0
-
-        # Best raw similarity from the winning group
-        best_sim = max(h["score"] for h in group_hits[best_group])
-
-        # Gate (a): absolute similarity floor
+        # Gate (a): absolute cosine floor
         if best_sim < SIM_FLOOR:
             log.debug(
                 "resolve_ingredient(%r): REJECTED best_sim=%.4f < SIM_FLOOR=%.4f",
@@ -282,12 +312,12 @@ def resolve_ingredient(ingredient: str, k: int = RESOLVE_K) -> dict | None:
             )
             return None
 
-        # Gate (b): winning group must clearly beat runner-up
-        if second_sum > 0 and best_sum < second_sum * RESOLVE_MARGIN:
+        # Gate (b): winner must clearly beat runner-up on max-cosine
+        if runner_max > 0 and best_sim < runner_max * RESOLVE_MARGIN:
             log.debug(
                 "resolve_ingredient(%r): REJECTED margin fail "
-                "best_sum=%.4f second_sum=%.4f MARGIN=%.2f",
-                ingredient, best_sum, second_sum, RESOLVE_MARGIN,
+                "best_sim=%.4f runner_max=%.4f MARGIN=%.2f",
+                ingredient, best_sim, runner_max, RESOLVE_MARGIN,
             )
             return None
 
@@ -306,8 +336,8 @@ def resolve_ingredient(ingredient: str, k: int = RESOLVE_K) -> dict | None:
         )
 
         log.debug(
-            "resolve_ingredient(%r) → swap_group=%r best_sim=%.4f group_sum=%.4f",
-            ingredient, best_group, best_sim, best_sum,
+            "resolve_ingredient(%r) → swap_group=%r best_sim=%.4f runner_max=%.4f",
+            ingredient, best_group, best_sim, runner_max,
         )
 
         return {
@@ -655,28 +685,43 @@ def build_index() -> None:
                 else:
                     raise
 
-    indexed = 0
-    for p in products:
-        text = product_embedding_text(p)
-        vec  = embed_with_retry(text)
+    from opensearchpy import helpers
 
-        doc = {
-            "id":             p["id"],
-            "name":           p["name"],
-            "category":       p["category"],
-            "swap_group":     p.get("swap_group"),
-            "brand":          p.get("brand", ""),
-            "price":          p.get("price", 0),
-            "rating":         p.get("rating"),
-            "prime_eligible": p.get("prime_eligible", False),
-            "stock_status":   p.get("stock_status", "in_stock"),
-            "tags":           p.get("tags", []),
-            "embedding":      vec,
-        }
-        client.index(index=_OS_INDEX, id=p["id"], body=doc)
-        indexed += 1
-        if indexed % 50 == 0 or indexed == total:
-            print(f"  indexed {indexed}/{total}", flush=True)
+    def _actions():
+        built = 0
+        for p in products:
+            text = product_embedding_text(p)
+            vec  = embed_with_retry(text)
+
+            yield {
+                "_index": _OS_INDEX,
+                "_id":    p["id"],
+                "_source": {
+                    "id":             p["id"],
+                    "name":           p["name"],
+                    "category":       p["category"],
+                    "swap_group":     p.get("swap_group"),
+                    "brand":          p.get("brand", ""),
+                    "price":          p.get("price", 0),
+                    "rating":         p.get("rating"),
+                    "prime_eligible": p.get("prime_eligible", False),
+                    "stock_status":   p.get("stock_status", "in_stock"),
+                    "tags":           p.get("tags", []),
+                    "embedding":      vec,
+                },
+            }
+            built += 1
+            if built % 50 == 0 or built == total:
+                print(f"  embedded {built}/{total}", flush=True)
+
+    success, errors = helpers.bulk(
+        client,
+        _actions(),
+        chunk_size=100,
+        request_timeout=120,
+        raise_on_error=True,
+    )
+    print(f"  bulk indexed {success} docs (errors: {errors})", flush=True)
 
     client.indices.refresh(index=_OS_INDEX)
     count = client.count(index=_OS_INDEX)["count"]
