@@ -1,9 +1,10 @@
 """Setup script to initialize MongoDB collections for personalization testing.
 
 Seeds:
-1. Products catalog (including p101-p103 for Meera's period kit)
-2. Customer cycles (Meera → Period care, Ravi → Monthly staples)
-3. Customer tags (behavioral tags for personalization)
+1. Customer cycles (Meera → Period care, Ravi → Monthly staples)
+2. Customer tags (behavioral tags for personalization)
+
+Does NOT touch db.products — catalog is loaded separately (1000-product Mongo seed).
 
 Run: python setup_personalization.py
 """
@@ -18,66 +19,10 @@ sys.path.insert(0, str(Path(__file__).parent))
 import db
 
 
-def seed_products():
-    """Seed products from data/products.json into MongoDB."""
-    print("\n" + "="*60)
-    print("STEP 1: Seed Products Catalog")
-    print("="*60)
-    
-    import json
-    
-    products_file = Path(__file__).parent / "data" / "products.json"
-    
-    if not products_file.exists():
-        print(f"❌ ERROR: {products_file} not found")
-        return False
-    
-    with open(products_file) as f:
-        data = json.load(f)
-    
-    # Handle both list and {"products": [...]} formats
-    products = data if isinstance(data, list) else data.get("products", [])
-    
-    if not products:
-        print("❌ ERROR: No products in JSON")
-        return False
-    
-    print(f"Loading {len(products)} products...")
-    
-    upserted = 0
-    for product in products:
-        result = db.products.update_one(
-            {"id": product["id"]},
-            {"$set": product},
-            upsert=True
-        )
-        if result.upserted_id or result.modified_count:
-            upserted += 1
-    
-    count = db.products.count_documents({})
-    
-    print(f"✓ Upserted: {upserted} products")
-    print(f"✓ Total in DB: {count} products")
-    
-    # Verify critical products exist
-    critical = ["p101", "p102", "p103", "p020", "p024", "p023", "p025"]
-    missing = []
-    for pid in critical:
-        if not db.products.find_one({"id": pid}):
-            missing.append(pid)
-    
-    if missing:
-        print(f"⚠ WARNING: Missing products: {missing}")
-        return False
-    
-    print(f"✓ Verified critical products: {critical}")
-    return True
-
-
 def seed_cycles():
     """Seed customer_cycles with fresh dates."""
     print("\n" + "="*60)
-    print("STEP 2: Seed Customer Cycles (Predicted Reorders)")
+    print("STEP 1: Seed Customer Cycles (Predicted Reorders)")
     print("="*60)
     
     from datetime import datetime, timedelta, timezone
@@ -88,7 +33,12 @@ def seed_cycles():
         {
             "customer_id": "cust_meera",
             "label": "Period-care kit",
-            "item_ids": ["p101", "p102", "p005", "p103"],  # pads, painkiller, chocolate, hot water bag
+            "item_ids": [
+                "p0390",  # Stayfree Secure XL Sanitary Pads
+                "p0402",  # Dolo 650mg
+                "p0127",  # Cadbury Dairy Milk Chocolate
+                "p0808",  # Hot Water Bag
+            ],
             "interval_days": 28,
             "last_purchase": (now - timedelta(days=26)).isoformat(),
             "private": True,
@@ -96,7 +46,12 @@ def seed_cycles():
         {
             "customer_id": "cust_ravi",
             "label": "Monthly staples",
-            "item_ids": ["p020", "p024", "p023", "p025"],  # milk, atta, rice, oil
+            "item_ids": [
+                "p0007",  # Mother Dairy Full Cream Milk (1L)
+                "p0088",  # Patanjali Whole Wheat Atta (5kg)
+                "p0013",  # India Gate Classic Basmati Rice (1kg)
+                "p0058",  # Fortune Sunlite Refined Sunflower Oil (1L)
+            ],
             "interval_days": 30,
             "last_purchase": (now - timedelta(days=28)).isoformat(),
             "private": False,
@@ -127,7 +82,7 @@ def seed_cycles():
 def seed_customer_tags():
     """Seed customer_tags for personalization."""
     print("\n" + "="*60)
-    print("STEP 3: Seed Customer Tags (For Personalization)")
+    print("STEP 2: Seed Customer Tags (For Personalization)")
     print("="*60)
     
     from datetime import datetime, timezone
@@ -180,7 +135,6 @@ def verify_setup():
     print("="*60)
     
     checks = [
-        ("products", db.products.count_documents({}), 80),  # Expect ~80+ products
         ("customer_cycles", db.customer_cycles.count_documents({}), 2),  # Meera + Ravi
         ("customer_tags", db.customer_tags.count_documents({}), 5),  # 5 demo customers
     ]
@@ -202,9 +156,8 @@ def main():
     print("QCart Personalization Setup")
     print("="*60)
     print("This script will seed MongoDB with:")
-    print("1. Products catalog (including period-care items)")
-    print("2. Customer cycles (Meera + Ravi predictions)")
-    print("3. Customer tags (behavioral data)")
+    print("1. Customer cycles (Meera + Ravi predictions)")
+    print("2. Customer tags (behavioral data)")
     print("="*60)
     
     # Check MongoDB connection
@@ -218,7 +171,6 @@ def main():
     
     # Run seeding steps
     steps = [
-        ("Products", seed_products),
         ("Cycles", seed_cycles),
         ("Customer Tags", seed_customer_tags),
     ]
