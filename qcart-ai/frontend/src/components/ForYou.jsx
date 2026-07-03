@@ -34,15 +34,20 @@ export default function ForYou() {
   const [predictions, setPredictions] = useState([]);
 
   useEffect(() => {
-    loadForYou(customerId);
+    if (!customerId || !city) return;
+    loadForYou(customerId, city);
     loadPredictions(customerId);
   }, [customerId, city]);
 
-  async function loadForYou(id) {
+  async function loadForYou(id, targetCity) {
     try {
       setLoading(true);
       setError("");
-      const res = await fetch(`/api/foryou?customer_id=${id}`);
+      const params = new URLSearchParams({
+        customer_id: id,
+        city: targetCity,
+      });
+      const res = await fetch(`/api/foryou?${params}`);
       if (!res.ok) throw new Error("Failed to load recommendations");
       const json = await res.json();
       setData(json);

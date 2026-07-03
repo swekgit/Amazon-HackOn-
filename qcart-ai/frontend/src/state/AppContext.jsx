@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useMemo, useCallback, useEffect } from "react";
-import { sendTurn, fetchCities, fetchTrending, fetchMomentCart } from "../api/client.js";
+import { sendTurn, fetchCities, fetchTrending, fetchMomentCart, fetchMoments } from "../api/client.js";
 import { computePaymentOffers } from "../lib/paymentOffers.js";
 import { useTheme } from "./useTheme.js";
 import { ORDER_HISTORY } from "../data/orders.js";
@@ -39,6 +39,7 @@ export function AppProvider({ children }) {
     segment: "working",
     tags: [],
   });
+  const [missionMoments, setMissionMoments] = useState([]);
 
   const themeState = useTheme();
 
@@ -281,16 +282,10 @@ const swapItem = useCallback((oldId, newProduct) => {
   }, []);
 
   useEffect(() => {
-    fetch(`/api/foryou?customer_id=${customerId}&city=${encodeURIComponent(city)}`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((json) => {
-        if (!json) return;
-        setCustomerProfile({
-          segment: json.customer?.segment || "working",
-          tags: json.tags || [],
-        });
-      })
-      .catch(() => {});
+    if (!customerId || !city) return;
+    fetchMoments({ customerId, city, pool: "missions" })
+      .then((data) => setMissionMoments(data.moments || []))
+      .catch(() => setMissionMoments([]));
   }, [customerId, city]);
 
   const value = useMemo(
@@ -339,6 +334,7 @@ const swapItem = useCallback((oldId, newProduct) => {
       setCustomerId,
       customerProfile,
       setCustomerProfile,
+      missionMoments,
     }),
     [
       cart, addProduct, removeItem, setQty,swapItem, subtotal, clearCart,
@@ -346,7 +342,7 @@ const swapItem = useCallback((oldId, newProduct) => {
       themeState, cartOpen, chatOpen, meta, readiness, paymentOffers, gapAmount,
       applyCartResponse,
       city, cities, setCity, trendingProducts, trendingLoading,
-      customerId, customerProfile,
+      customerId, customerProfile, missionMoments,
     ]
   );
 

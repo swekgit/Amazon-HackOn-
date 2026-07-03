@@ -1,8 +1,6 @@
 import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
 import { useApp } from "../state/AppContext.jsx";
-import { useEffect, useState } from "react";
-import { fetchMoments } from "../api/client.js";
 
 const MISSION_VISUALS = {
   "Movie Night": { iconBg: "bg-purple-50", borderAccent: "border-purple-200" },
@@ -39,14 +37,7 @@ const cardVariants = {
 };
 
 export default function MissionCards({ onMomentSelect }) {
-  const { sendMoment, loading, customerId, city } = useApp();
-  const [moments, setMoments] = useState([]);
-
-  useEffect(() => {
-    fetchMoments({ customerId, city, pool: "missions" })
-      .then((data) => setMoments(data.moments || []))
-      .catch(() => setMoments([]));
-  }, [customerId, city]);
+  const { sendMoment, loading, missionMoments } = useApp();
 
   const handleSelect = (mi) => {
     onMomentSelect?.(mi.label);
@@ -61,7 +52,7 @@ export default function MissionCards({ onMomentSelect }) {
       </div>
 
       <div className="grid grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-3">
-        {moments.map((mi, i) => {
+        {missionMoments.map((mi, i) => {
           const visual = MISSION_VISUALS[mi.label] || { iconBg: "bg-gray-50", borderAccent: "border-gray-200" };
           return (
             <motion.button

@@ -4,16 +4,19 @@ This is the data layer the rest of the backend builds on."""
 import json
 import logging
 import os
+import time
 from collections import defaultdict
 from functools import cmp_to_key
 from pathlib import Path
 
 import boto3
 import db
+import numpy as np
 
 log = logging.getLogger(__name__)
 
 DATA = Path(__file__).parent / "data"
+LOCAL_EMBEDDINGS_PATH = DATA / "product_embeddings.npz"
 
 # ─── S3 image base URL ────────────────────────────────────────────────────────
 _IMAGE_BASE = "https://qcart-ai-apoorva-images.s3.ap-south-1.amazonaws.com/products/"
@@ -77,6 +80,60 @@ CATALOG = get_catalog()
 HISTORY = json.loads((DATA / "orders.json").read_text())
 
 BY_ID = {p["id"]: p for p in CATALOG}
+
+# ─── Local in-memory kNN (optional; falls back to OpenSearch) ─────────────────
+
+_local_product_ids: list[str] | None = None
+_local_embedding_matrix: np.ndarray | None = None  # (N, EMBED_DIM) float32
+_local_embeddings_loaded = False
+_local_embeddings_available = False
+
+
+def _load_local_embeddings() -> bool:
+    """Load product_embeddings.npz once at startup. Returns True if usable."""
+    global _local_product_ids, _local_embedding_matrix
+    global _local_embeddings_loaded, _local_embeddings_available
+
+    if _local_embeddings_loaded:
+        return _local_embeddings_available
+    _local_embeddings_loaded = True
+
+    if not LOCAL_EMBEDDINGS_PATH.is_file():
+        log.info(
+            "Local embeddings not loaded — file missing: %s (will use OpenSearch kNN)",
+            LOCAL_EMBEDDINGS_PATH,
+        )
+        return False
+
+    try:
+        data = np.load(LOCAL_EMBEDDINGS_PATH, allow_pickle=True)
+        ids = data["product_ids"]
+        matrix = data["embeddings"]
+        if matrix.ndim != 2 or matrix.shape[1] != EMBED_DIM:
+            raise ValueError(
+                f"expected embeddings shape (N, {EMBED_DIM}), got {matrix.shape}"
+            )
+        _local_product_ids = [str(pid) for pid in ids.tolist()]
+        # Stored vectors are already Titan-normalized; do not re-normalize.
+        _local_embedding_matrix = np.ascontiguousarray(matrix, dtype=np.float32)
+        _local_embeddings_available = True
+        log.info(
+            "Local embeddings loaded: %d vectors dim=%d from %s",
+            len(_local_product_ids),
+            EMBED_DIM,
+            LOCAL_EMBEDDINGS_PATH,
+        )
+        return True
+    except Exception as exc:
+        log.warning(
+            "Local embeddings failed to load from %s: %s (will use OpenSearch kNN)",
+            LOCAL_EMBEDDINGS_PATH,
+            exc,
+        )
+        return False
+
+
+_load_local_embeddings()
 
 # ─── Intent-based retrieval ────────────────────────────────────────────────────
 
@@ -206,13 +263,14 @@ def _get_os_client():
     )
 
 
-def _knn_search(qvec: list[float], k: int) -> list[dict]:
+def _knn_search_opensearch(qvec: list[float], k: int) -> list[dict]:
     """Run a kNN search against the OpenSearch index.
 
     Returns hit dicts with true cosine similarity in ``score`` (OpenSearch
     innerproduct returns _score = 1 + cosine).
     """
     client = _get_os_client()
+
     body = {
         "size": k,
         "query": {
@@ -229,6 +287,38 @@ def _knn_search(qvec: list[float], k: int) -> list[dict]:
         {"product": h["_source"], "score": h["_score"] - 1.0}
         for h in res["hits"]["hits"]
     ]
+
+
+def _knn_search_local(qvec: list[float], k: int) -> list[dict]:
+    """In-memory top-k by dot product (unit-normalized vectors ≡ cosine similarity)."""
+    if _local_embedding_matrix is None or _local_product_ids is None:
+        return []
+
+    q = np.asarray(qvec, dtype=np.float32)
+    # Dot product against pre-normalized stored vectors — no second normalization.
+    scores = _local_embedding_matrix @ q
+    k_eff = min(k, scores.shape[0])
+    top_idx = np.argpartition(scores, -k_eff)[-k_eff:]
+    top_idx = top_idx[np.argsort(-scores[top_idx])]
+
+    hits: list[dict] = []
+    for idx in top_idx:
+        pid = _local_product_ids[int(idx)]
+        product = BY_ID.get(pid)
+        if not product:
+            continue
+        hits.append({"product": product, "score": float(scores[idx])})
+
+    return hits
+
+
+def _knn_search(qvec: list[float], k: int) -> list[dict]:
+    """Top-k vector search — local in-memory if embeddings file loaded, else OpenSearch."""
+    if _local_embeddings_available:
+        log.info("kNN path = LocalInMemory")
+        return _knn_search_local(qvec, k)
+    log.info("kNN path = OpenSearch")
+    return _knn_search_opensearch(qvec, k)
 
 
 def _group_hits_by_swap_group(hits: list[dict]) -> tuple[
@@ -379,17 +469,18 @@ def resolve_ingredient(ingredient: str, k: int = RESOLVE_K) -> dict | None:
 
 
 def _opensearch_retrieve(intent: str, limit: int) -> list[dict] | None:
-    """Vector search via OpenSearch using Cohere embeddings.
+    """Vector search: Titan query embed + local or OpenSearch kNN.
+
     Returns product list or None on failure / not configured.
     """
-    if not _OS_ENDPOINT:
+    if not _OS_ENDPOINT and not _local_embeddings_available:
         return None
     try:
         qvec = embed([intent], "search_query")[0]
         hits = _knn_search(qvec, limit)
         return [h["product"] for h in hits]
     except Exception as exc:
-        log.warning("OpenSearch retrieval failed: %s", exc)
+        log.warning("Vector retrieval failed: %s", exc)
         return None
 
 
@@ -454,7 +545,8 @@ def _keyword_retrieve(intent: str, limit: int) -> list[dict]:
 def retrieve(intent: str, limit: int = 40) -> str:
     """Return a compact JSON catalog subset relevant to the user intent.
 
-    PRIMARY:  OpenSearch vector retrieval (if OPENSEARCH_ENDPOINT is set).
+    PRIMARY:  Local in-memory kNN when product_embeddings.npz is present, else
+              OpenSearch vector retrieval (if OPENSEARCH_ENDPOINT is set).
     FALLBACK: Keyword retrieval (always works, never throws).
 
     Logs which retriever was used.
@@ -463,7 +555,10 @@ def retrieve(intent: str, limit: int = 40) -> str:
     products = _opensearch_retrieve(intent, limit)
 
     if products is not None:
-        log.info("Retriever used = OpenSearch")
+        if _local_embeddings_available:
+            log.info("Retriever used = LocalInMemory")
+        else:
+            log.info("Retriever used = OpenSearch")
     else:
         log.info("Retriever used = KeywordFallback")
         raw = _keyword_retrieve(intent, limit)

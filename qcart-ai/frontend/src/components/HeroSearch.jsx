@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, Loader2, MessageCircle, Search } from "lucide-react";
 import { useApp } from "../state/AppContext.jsx";
-import { fetchMoments } from "../api/client.js";
 import VoiceButton from "./VoiceButton.jsx";
 
 const DEFAULT_PLACEHOLDERS = [
@@ -24,7 +23,7 @@ const FALLBACK_CHIPS = [
 ];
 
 export default function HeroSearch({ onSubmit }) {
-  const { send, sendMoment, loading, setChatOpen, customerId, city } = useApp();
+  const { send, sendMoment, loading, setChatOpen, missionMoments } = useApp();
   const [text, setText] = useState("");
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const [displayedPlaceholder, setDisplayedPlaceholder] = useState("");
@@ -34,17 +33,16 @@ export default function HeroSearch({ onSubmit }) {
   const inputRef = useRef(null);
 
   useEffect(() => {
-    fetchMoments({ customerId, city, pool: "missions" })
-      .then((data) => {
-        const moments = (data.moments || []).slice(0, 5);
-        if (!moments.length) return;
-        setQuickPicks(moments);
-        setPlaceholders(moments.map((m) => m.intent));
-        setPlaceholderIdx(0);
-        setIsTyping(true);
-      })
-      .catch(() => setQuickPicks(FALLBACK_CHIPS));
-  }, [customerId, city]);
+    const moments = (missionMoments || []).slice(0, 5);
+    if (!moments.length) {
+      setQuickPicks(FALLBACK_CHIPS);
+      return;
+    }
+    setQuickPicks(moments);
+    setPlaceholders(moments.map((m) => m.intent));
+    setPlaceholderIdx(0);
+    setIsTyping(true);
+  }, [missionMoments]);
 
   useEffect(() => {
     if (!placeholders.length) return;
