@@ -65,6 +65,36 @@ app.add_middleware(
 class CartTurn(BaseModel):
     message: str
     cart: list = []               # current cart lines (empty on first turn)
+    customer_id: str | None = None
+    city: str = DEFAULT_CITY
+
+
+def _load_cart_signals(customer_id: str | None, city: str) -> dict:
+    """Load personalization signals for cart generation (reuses foryou sources)."""
+    normalized_city = _normalize_city(city)
+    segment = "working"
+    tags: list[str] = []
+
+    if customer_id:
+        demo_persona = persona.get_demo_persona(customer_id)
+        if demo_persona:
+            segment = demo_persona["segment"]
+        elif db.customers is not None:
+            customer_doc = db.customers.find_one({"customer_id": customer_id})
+            if customer_doc:
+                segment = persona.infer_segment(customer_doc)
+
+        if db.customer_tags is not None:
+            tag_doc = db.customer_tags.find_one({"customer_id": customer_id})
+            tags = (tag_doc or {}).get("tags", [])
+
+    return {
+        "customer_id": customer_id,
+        "segment": segment,
+        "tags": tags,
+        "city": normalized_city,
+        "time_bucket": recommendation_engine.get_time_bucket(),
+    }
 
 
 # ── Lightweight reads ──────────────────────────────────────────────────────────
@@ -203,8 +233,10 @@ def cart_turn(turn: CartTurn):
     if not message:
         raise HTTPException(400, "Tell me what you need.")
 
+    signals = _load_cart_signals(turn.customer_id, turn.city)
+
     # 1) cache
-    cached = cache.get(message, turn.cart)
+    cached = cache.get(message, turn.cart, signals)
     if cached:
         return {**cached, "cached": True}
 
@@ -226,7 +258,7 @@ def cart_turn(turn: CartTurn):
     else:
         # 2) brain — normal conversational path
         try:
-            result = brain.think(message, turn.cart)
+            result = brain.think(message, turn.cart, signals)
         except json.JSONDecodeError:
             raise HTTPException(502, "Brain returned malformed data, try again.")
         except Exception as exc:  # noqa: BLE001
@@ -363,7 +395,7 @@ def cart_turn(turn: CartTurn):
         "cached":                  False,
     }
 
-    cache.set(message, turn.cart, payload)
+    cache.set(message, turn.cart, payload, signals)
     return payload
 
 

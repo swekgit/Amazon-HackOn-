@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import catalog
+import recommendation_engine
 from model_router import invoke_json, invoke, Task, get_model_info
 
 # Expose model info for health endpoint
@@ -117,7 +118,34 @@ def _context_block(message: str) -> str:
     )
 
 
-def think(message: str, cart: list) -> dict:
+def _personalization_block(signals: dict | None) -> str:
+    if not signals:
+        return ""
+
+    segment = signals.get("segment", "working")
+    tags = signals.get("tags") or []
+    city = signals.get("city", "")
+    time_bucket = signals.get("time_bucket", "")
+    segment_tags = recommendation_engine.SEGMENT_TAGS.get(segment, [])
+    time_tags = recommendation_engine.TIME_BUCKET_TAGS.get(time_bucket, [])
+
+    return f"""
+CUSTOMER PERSONALIZATION (bias product choices and reasons using these signals):
+- Segment: {segment} (typical preferences: {", ".join(segment_tags)})
+- Behavioral tags: {", ".join(tags) if tags else "none"}
+- City: {city}
+- Time of day: {time_bucket} (relevant now: {", ".join(time_tags)})
+
+Personalization rules:
+- Prefer catalog items whose tags align with segment, behavioral tags, and time of day.
+- student → budget/instant/snack; working → coffee/ready-to-eat/premium;
+  family → bulk/staples/household; senior → healthy/low-sugar/organic.
+- The same user message should produce meaningfully different carts for different
+  segments or tags when multiple valid products exist.
+"""
+
+
+def think(message: str, cart: list, signals: dict | None = None) -> dict:
     """Returns the raw parsed dict from the model (ids not yet validated)."""
     cart_state = [
         {"product_id": i["id"], "name": i["name"], "quantity": i["quantity"]}
@@ -128,7 +156,7 @@ def think(message: str, cart: list) -> dict:
 {INSTRUCTIONS}
 
 {_context_block(message)}
-
+{_personalization_block(signals)}
 CURRENT CART:
 {json.dumps(cart_state)}
 

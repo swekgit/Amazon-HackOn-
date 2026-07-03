@@ -121,7 +121,12 @@ export function AppProvider({ children }) {
       themeState.setThemeByContext(value);
       const startTime = performance.now();
       try {
-        const res = await sendTurn({ message: value, cart });
+        const res = await sendTurn({
+          message: value,
+          cart,
+          customerId,
+          city,
+        });
         const buildTime = ((performance.now() - startTime) / 1000).toFixed(1);
         setCart(res.cart);
         setMeta({
@@ -146,7 +151,7 @@ export function AppProvider({ children }) {
         setLoading(false);
       }
     },
-    [loading, cart, themeState]
+    [loading, cart, themeState, customerId, city]
   );
 
   const setQty = useCallback(

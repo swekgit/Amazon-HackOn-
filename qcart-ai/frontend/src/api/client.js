@@ -3,13 +3,17 @@ import { mockTurn } from "./mock.js";
 // Flip to false once the backend is ready. Lets frontend work fully standalone.
 const USE_MOCK = false;
 
-export async function sendTurn({ message, cart }) {
+export async function sendTurn({ message, cart, customerId, city }) {
   if (USE_MOCK) return mockTurn({ message, cart });
+
+  const body = { message, cart };
+  if (customerId) body.customer_id = customerId;
+  if (city) body.city = city;
 
   const res = await fetch("/api/cart", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, cart }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
