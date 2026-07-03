@@ -15,17 +15,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import db
 
-# --- Real catalog IDs (from products.json) ---
-DARK_CHOCOLATE_ID = "p005"
-MILK_ID = "p020"
-ATTA_ID = "p024"
-RICE_ID = "p023"
-OIL_ID = "p025"
-
-# New health products added for cycle-aware reorder
-PADS_ID = "p101"
-PAINKILLER_ID = "p102"
-HOT_WATER_BAG_ID = "p103"
+# --- Real catalog IDs (1000-product Mongo catalog) ---
+MILK_ID = "p0007"
+ATTA_ID = "p0088"
+RICE_ID = "p0013"
+OIL_ID = "p0058"
+PADS_ID = "p0390"
+PAINKILLER_ID = "p0402"
+DARK_CHOCOLATE_ID = "p0127"
+HOT_WATER_BAG_ID = "p0808"
 
 
 def seed():
