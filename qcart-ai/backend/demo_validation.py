@@ -18,7 +18,7 @@ TIMEOUT = 60
 
 SCENARIOS = [
     "movie night for 4",
-    "party for 6",
+    "hosting a party",
     "weekly groceries",
     "baby care essentials",
     "I have fever",

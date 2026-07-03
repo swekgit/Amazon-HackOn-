@@ -5,7 +5,6 @@ import { useApp } from "../state/AppContext.jsx";
 
 const MISSION_VISUALS = {
   "Movie Night": { iconBg: "bg-purple-50", borderAccent: "border-purple-200" },
-  "Party for 6": { iconBg: "bg-pink-50", borderAccent: "border-pink-200" },
   "Rainy Day": { iconBg: "bg-cyan-50", borderAccent: "border-cyan-200" },
   "Guests at Home": { iconBg: "bg-amber-50", borderAccent: "border-amber-200" },
   "Study Session": { iconBg: "bg-blue-50", borderAccent: "border-blue-200" },

@@ -37,7 +37,11 @@ def main():
     with open(PRODUCTS_FILE, encoding="utf-8") as f:
         json_data = json.load(f)
 
-    products = json_data.get("products", [])
+    # products.json is a raw list OR {"products": [...]}
+    if isinstance(json_data, list):
+        products = json_data
+    else:
+        products = json_data.get("products", [])
     print(f"Loaded JSON: {len(products)} products")
 
     if not products:

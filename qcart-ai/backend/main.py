@@ -33,6 +33,26 @@ log = logging.getLogger(__name__)
 
 DEFAULT_CITY = "Bangalore"
 
+# City aliases for normalization (common alternate names)
+CITY_ALIASES = {
+    "bengaluru": "Bangalore",
+    "bombay": "Mumbai",
+    "madras": "Chennai",
+    "calcutta": "Kolkata",
+    "new delhi": "Delhi",
+}
+
+
+def _normalize_city(city: str) -> str:
+    """Normalize city name: trim, title-case, resolve aliases."""
+    city = city.strip()
+    city_lower = city.lower()
+    # Check aliases first
+    if city_lower in CITY_ALIASES:
+        return CITY_ALIASES[city_lower]
+    # Return title-cased version
+    return city.title()
+
 app = FastAPI(title="QCart AI")
 app.add_middleware(
     CORSMiddleware,
@@ -71,21 +91,31 @@ def list_cities():
 @app.get("/api/trending")
 def trending_products(city: str = DEFAULT_CITY):
     """Return trending products for a city, resolved via catalog."""
-    log.info("Trending request for city=%s", city)
+    normalized = _normalize_city(city)
+    log.info("Trending request for city=%s (normalized=%s)", city, normalized)
 
     try:
-        doc = db.trending.find_one({"city": {"$regex": f"^{city}$", "$options": "i"}})
+        doc = db.trending.find_one({"city": {"$regex": f"^{normalized}$", "$options": "i"}})
     except Exception as exc:
         log.error("MongoDB query failed: %s", exc)
         raise HTTPException(502, "Database error.") from exc
 
     # Fallback to default city if requested city not found
-    if not doc and city.lower() != DEFAULT_CITY.lower():
-        log.warning("City '%s' not found, falling back to %s", city, DEFAULT_CITY)
+    if not doc and normalized.lower() != DEFAULT_CITY.lower():
+        log.warning("City '%s' not found, falling back to %s", normalized, DEFAULT_CITY)
         doc = db.trending.find_one({"city": {"$regex": f"^{DEFAULT_CITY}$", "$options": "i"}})
 
+    # Global fallback: return popular catalog items if nothing in DB
     if not doc:
-        raise HTTPException(404, f"No trending products found for city: {city}")
+        log.warning("No trending data at all, using catalog fallback")
+        popular = catalog.CATALOG[:8]
+        return {
+            "city": normalized,
+            "products": [
+                {"id": p["id"], "name": p["name"], "price": p["price"], "tags": p["tags"]}
+                for p in popular
+            ],
+        }
 
     products = []
     for pid in doc.get("product_ids", []):
@@ -98,11 +128,76 @@ def trending_products(city: str = DEFAULT_CITY):
                 "tags": p["tags"],
             })
 
-    resolved_city = doc.get("city", city)
+    resolved_city = doc.get("city", normalized)
     log.info("Returning %d trending products for %s", len(products), resolved_city)
     return {"city": resolved_city, "products": products}
 
 
+
+
+IMAGE_BASE_URL = "https://qcart-ai-apoorva-images.s3.ap-south-1.amazonaws.com/products"
+
+
+@app.get("/api/buyagain")
+def buy_again(customer_id: str):
+    """Return frequently purchased products for a customer, data-driven from order history.
+
+    Sources: MongoDB customer_cycles or orders collection.
+    Falls back to empty list if no history exists.
+    """
+    # Try to get purchase history from customer cycles (predicted reorders)
+    products_freq = {}
+
+    if db.customer_cycles is not None:
+        try:
+            cycles = list(db.customer_cycles.find(
+                {"customer_id": customer_id}, {"_id": 0}
+            ))
+            for cycle in cycles:
+                for pid in cycle.get("item_ids", []):
+                    products_freq[pid] = products_freq.get(pid, 0) + cycle.get("frequency", 1)
+        except Exception as exc:
+            log.warning("buy_again cycles query failed: %s", exc)
+
+    # Also check customer document for order history
+    if db.customers is not None and not products_freq:
+        try:
+            customer = db.customers.find_one({"customer_id": customer_id})
+            if customer:
+                for order in customer.get("orders", []):
+                    for item in order.get("items", []):
+                        pid = item if isinstance(item, str) else item.get("product_id", "")
+                        if pid:
+                            products_freq[pid] = products_freq.get(pid, 0) + 1
+        except Exception as exc:
+            log.warning("buy_again orders query failed: %s", exc)
+
+    if not products_freq:
+        return {"customer_id": customer_id, "products": []}
+
+    # Sort by frequency (desc), then validate against catalog
+    sorted_pids = sorted(products_freq.keys(), key=lambda p: -products_freq[p])
+
+    results = []
+    for pid in sorted_pids:
+        p = catalog.get(pid)
+        if not p:
+            continue
+        if p.get("stock_status") == "out_of_stock":
+            continue
+        results.append({
+            "id": p["id"],
+            "name": p["name"],
+            "price": p["price"],
+            "brand": p.get("brand", ""),
+            "category": p["category"],
+            "image": f"{IMAGE_BASE_URL}/{p['image']}",
+            "frequency": products_freq[pid],
+        })
+        if len(results) >= 10:
+            break
+
+    return {"customer_id": customer_id, "products": results}
 
 
 # ── Conversational cart ────────────────────────────────────────────────────────
@@ -250,6 +345,9 @@ def cart_turn(turn: CartTurn):
     # 5) gap engine
     gap_info = gap.compute(cart_lines, context)
 
+    # 6) SMART payment offers - cart-aware suggestions
+    payment_offers = _generate_smart_payment_offers(cart_lines, subtotal, context)
+
     payload = {
         "reply":                   result["reply"],
         "context":                 context,
@@ -262,10 +360,7 @@ def cart_turn(turn: CartTurn):
         "free_delivery_threshold": gap.FREE_DELIVERY_THRESHOLD,
         "gap_amount":              gap_info["gap_amount"],
         "gap_fillers":             gap_info["gap_fillers"],
-        "payment_offers":          [
-            {"title": "10% off with ICICI Bank", "detail": "Up to ₹75 on orders above ₹299"},
-            {"title": "Amazon Pay 5% cashback", "detail": "Max ₹50"},
-        ],
+        "payment_offers":          payment_offers,
         "saved_payments":          [
             {"label": "ICICI Credit Card", "last4": "4521"},
             {"label": "Amazon Pay UPI", "last4": ""},
@@ -348,7 +443,13 @@ def _handle_recipe(recipe_meta: dict, current_cart: list) -> tuple[dict, list, l
 
 @app.get("/api/foryou")
 def for_you(customer_id: str, city: str = DEFAULT_CITY):
-
+    """PERSONALIZED For You feed per customer (segment + city + tags).
+    
+    Each customer sees different recommendations based on:
+    - Their segment (student/working/family/senior)
+    - Their city (for trending)
+    - Their behavioral tags (from rule engine)
+    """
     # Get persona/segment
     demo_persona = persona.get_demo_persona(customer_id)
     segment = demo_persona["segment"] if demo_persona else "working"
@@ -365,19 +466,12 @@ def for_you(customer_id: str, city: str = DEFAULT_CITY):
 
     tags = (customer or {}).get("tags", [])
 
-    if not tags:
-        # Use segment-based recommendations even without tags
-        recommended = recommendation_engine.get_recommendations([], segment, city)
-        trending = recommendation_engine.get_trending(city)
-        return {
-            "customer": customer_info,
-            "tags": [],
-            "recommended": recommended[:8],
-            "deals": [],
-            "trending": trending[:6],
-        }
+    # ALWAYS use personalized recommendation engine (segment + city + tags)
+    recommended = recommendation_engine.get_recommendations(tags, segment, city)
+    trending = recommendation_engine.get_trending(city)
 
-    retrieval_query = " ".join(tags)
+    # Build retrieval query combining tags + segment
+    retrieval_query = " ".join(tags + [segment, city]) if tags else f"{segment} {city}"
 
     candidate_json = catalog.retrieve(
         retrieval_query,
@@ -387,8 +481,6 @@ def for_you(customer_id: str, city: str = DEFAULT_CITY):
     candidates = json.loads(candidate_json)
 
     if not candidates:
-        recommended = recommendation_engine.get_recommendations(tags, segment, city)
-        trending = recommendation_engine.get_trending(city)
         return {
             "customer": customer_info,
             "tags": tags,
@@ -415,44 +507,29 @@ def for_you(customer_id: str, city: str = DEFAULT_CITY):
         for o in offers_cursor
     }
 
+    # Score products based on tags + segment
     scored = sorted(
         candidates,
-        key=lambda p: _score_product(p, tags),
+        key=lambda p: _score_product(p, tags, segment),
         reverse=True,
     )
-
-    recommended_candidates = scored[:8]
 
     deal_candidates = []
 
     for p in scored:
-
         if p["id"] not in offer_map:
             continue
 
-        if _score_product(p, tags) <= 0:
+        if _score_product(p, tags, segment) <= 0:
             continue
 
         deal_candidates.append(p)
 
     deal_candidates = deal_candidates[:4]
 
-    recommended = []
-
-    for p in recommended_candidates:
-        recommended.append(
-            {
-                "id": p["id"],
-                "name": p["name"],
-                "price": p["price"],
-                "reason": reason_for_product(p, tags)
-            }
-        )
-
     deals = []
 
     for p in deal_candidates:
-
         offer = offer_map[p["id"]]
 
         deals.append(
@@ -474,7 +551,6 @@ def for_you(customer_id: str, city: str = DEFAULT_CITY):
         )
 
     try:
-
         copy_result = brain.personalize_copy(
             tags=tags,
             recommended_products=[
@@ -512,20 +588,23 @@ def for_you(customer_id: str, city: str = DEFAULT_CITY):
     except Exception:
         pass
 
-    # Generate trending using rules engine
-    trending = recommendation_engine.get_trending(city)
-
     return {
         "customer": customer_info,
         "tags": tags,
-        "recommended": recommended,
+        "recommended": recommended[:8],
         "deals": deals,
         "trending": trending[:6],
     }
 
 @app.get("/api/predicted")
 def predicted_reorders(customer_id: str):
-
+    """PERSONALIZED predicted reorders per customer.
+    
+    Returns customer-specific kits from customer_cycles collection.
+    Examples:
+    - cust_meera → "Period-care kit" (pads, painkiller, chocolate, hot water bag)
+    - cust_ravi → "Monthly staples" (milk, atta, rice, oil)
+    """
     if db.customer_cycles is None:
         raise HTTPException(503, "MongoDB not configured.")
 
@@ -537,6 +616,7 @@ def predicted_reorders(customer_id: str):
     )
 
     if not cycles:
+        log.info(f"predicted_reorders: No cycles found for customer_id={customer_id}")
         return {"predictions": []}
 
     today = datetime.now(timezone.utc).date()
@@ -544,7 +624,6 @@ def predicted_reorders(customer_id: str):
     predictions = []
 
     for cycle in cycles:
-
         last_purchase_raw = cycle.get("last_purchase")
 
         if not last_purchase_raw:
@@ -581,10 +660,10 @@ def predicted_reorders(customer_id: str):
         subtotal = 0
 
         for product_id in cycle.get("item_ids", []):
-
             product = catalog.get(product_id)
 
             if not product:
+                log.warning(f"predicted_reorders: product {product_id} not found in catalog")
                 continue
 
             cart.append(
@@ -617,15 +696,18 @@ def predicted_reorders(customer_id: str):
         key=lambda p: p["due_in_days"]
     )
 
+    log.info(f"predicted_reorders: Returning {len(predictions)} predictions for {customer_id}")
     return {
         "predictions": predictions
     }
 
-def _score_product(product: dict, tags: list[str]) -> int:
+def _score_product(product: dict, tags: list[str], segment: str = "working") -> int:
+    """Score product relevance based on tags AND segment."""
     score = 0
 
     ptags = set(product.get("tags", []))
 
+    # Tag-based scoring
     mapping = {
         "party_host": {"party"},
         "entertainer": {"party", "snack"},
@@ -640,15 +722,29 @@ def _score_product(product: dict, tags: list[str]) -> int:
         "household_planner": {"household", "cleaning", "staple"},
         "weekly_planner": {"staple", "household"},
         "family_planner": {"family", "bulk"},
+        "tea_lover": {"tea"},
+        "new_parent": {"baby"},
     }
 
     for tag in tags:
-        score += len(ptags.intersection(mapping.get(tag, set())))
+        score += len(ptags.intersection(mapping.get(tag, set()))) * 3
+
+    # Segment-based scoring boost
+    segment_boosts = {
+        "student": {"instant", "snack", "cheap"},
+        "working": {"coffee", "premium", "ready_to_eat", "protein"},
+        "family": {"bulk", "staple", "family", "household"},
+        "senior": {"healthy", "organic", "diabetic"},
+    }
+
+    if segment in segment_boosts:
+        score += len(ptags.intersection(segment_boosts[segment])) * 2
 
     return score
 
 
-def _default_foryou(customer_id: str):
+def _default_foryou(customer_id: str, city: str = DEFAULT_CITY):
+    """Default personalized foryou when customer has no tags in DB."""
     demo_persona = persona.get_demo_persona(customer_id)
     segment = demo_persona["segment"] if demo_persona else "working"
 
@@ -658,8 +754,9 @@ def _default_foryou(customer_id: str):
         "segment": segment,
     }
 
-    recommended = recommendation_engine.get_recommendations([], segment)
-    trending = recommendation_engine.get_trending()
+    # Still use personalized recommendation engine (segment + city)
+    recommended = recommendation_engine.get_recommendations([], segment, city)
+    trending = recommendation_engine.get_trending(city)
 
     return {
         "customer": customer_info,
@@ -668,6 +765,84 @@ def _default_foryou(customer_id: str):
         "deals": [],
         "trending": trending[:6],
     }
+
+
+def _generate_smart_payment_offers(cart_lines: list[dict], subtotal: float, context: str) -> list[dict]:
+    """Generate SMART cart-aware payment offers.
+    
+    Suggests which items to add to unlock offers.
+    Shows BEST applicable offer for current cart.
+    """
+    offers = []
+    
+    # Offer 1: ICICI Bank 10% off (min ₹299)
+    if subtotal >= 299:
+        # Already eligible
+        max_discount = min(subtotal * 0.10, 75)
+        offers.append({
+            "title": "ICICI Bank 10% off",
+            "detail": f"Save up to ₹{int(max_discount)} • Eligible now ✓",
+            "eligible": True,
+            "saved_amount": int(max_discount),
+        })
+    else:
+        needed = 299 - subtotal
+        offers.append({
+            "title": "ICICI Bank 10% off",
+            "detail": f"Add ₹{int(needed)} more to unlock (save up to ₹75)",
+            "eligible": False,
+            "gap_amount": int(needed),
+        })
+    
+    # Offer 2: Amazon Pay 5% cashback (min ₹200)
+    if subtotal >= 200:
+        cashback = min(subtotal * 0.05, 50)
+        offers.append({
+            "title": "Amazon Pay 5% cashback",
+            "detail": f"Earn ₹{int(cashback)} cashback • Eligible now ✓",
+            "eligible": True,
+            "saved_amount": int(cashback),
+        })
+    else:
+        needed = 200 - subtotal
+        offers.append({
+            "title": "Amazon Pay 5% cashback",
+            "detail": f"Add ₹{int(needed)} more to unlock (earn up to ₹50)",
+            "eligible": False,
+            "gap_amount": int(needed),
+        })
+    
+    # Offer 3: Context-specific bonus offer
+    cart_categories = {line["category"] for line in cart_lines}
+    
+    if context == "health" or "health" in cart_categories:
+        if any("medicine" in line.get("tags", []) or "fever" in line.get("tags", []) for line in cart_lines):
+            offers.append({
+                "title": "Health Essentials 15% off",
+                "detail": "Extra savings on health items • Applied automatically ✓",
+                "eligible": True,
+                "saved_amount": int(subtotal * 0.15),
+            })
+    elif context == "party" or "party" in cart_categories:
+        if subtotal >= 500:
+            offers.append({
+                "title": "Party Combo Offer",
+                "detail": "₹100 instant discount • Applied ✓",
+                "eligible": True,
+                "saved_amount": 100,
+            })
+        else:
+            offers.append({
+                "title": "Party Combo Offer",
+                "detail": f"Add ₹{int(500 - subtotal)} to unlock ₹100 off",
+                "eligible": False,
+                "gap_amount": int(500 - subtotal),
+            })
+    
+    # Sort by: eligible first, then by saved_amount descending
+    offers.sort(key=lambda x: (-int(x.get("eligible", False)), -x.get("saved_amount", x.get("gap_amount", 0))))
+    
+    return offers[:3]  # Return top 3 offers
 
 
 @app.get("/api/all-tags")
