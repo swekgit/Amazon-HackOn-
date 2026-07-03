@@ -26,6 +26,9 @@ import db
 import rule_engine
 import persona
 import recommendation_engine
+import cart_why
+import moments
+import moment_cache
 
 load_dotenv()
 
@@ -65,6 +68,36 @@ app.add_middleware(
 class CartTurn(BaseModel):
     message: str
     cart: list = []               # current cart lines (empty on first turn)
+    customer_id: str | None = None
+    city: str = DEFAULT_CITY
+
+
+def _load_cart_signals(customer_id: str | None, city: str) -> dict:
+    """Load personalization signals for cart generation (reuses foryou sources)."""
+    normalized_city = _normalize_city(city)
+    segment = "working"
+    tags: list[str] = []
+
+    if customer_id:
+        demo_persona = persona.get_demo_persona(customer_id)
+        if demo_persona:
+            segment = demo_persona["segment"]
+        elif db.customers is not None:
+            customer_doc = db.customers.find_one({"customer_id": customer_id})
+            if customer_doc:
+                segment = persona.infer_segment(customer_doc)
+
+        if db.customer_tags is not None:
+            tag_doc = db.customer_tags.find_one({"customer_id": customer_id})
+            tags = (tag_doc or {}).get("tags", [])
+
+    return {
+        "customer_id": customer_id,
+        "segment": segment,
+        "tags": tags,
+        "city": normalized_city,
+        "time_bucket": recommendation_engine.get_time_bucket(),
+    }
 
 
 # ── Lightweight reads ──────────────────────────────────────────────────────────
@@ -197,69 +230,57 @@ def buy_again(customer_id: str):
 # ── Conversational cart ────────────────────────────────────────────────────────
 
 
-@app.post("/api/cart")
-def cart_turn(turn: CartTurn):
-    message = turn.message.strip()
-    if not message:
-        raise HTTPException(400, "Tell me what you need.")
-
-    # 1) cache
-    cached = cache.get(message, turn.cart)
-    if cached:
-        return {**cached, "cached": True}
-
-    # ── Recipe-to-cart detection (Task 1) ──────────────────────────────────────
+def _generate_cart_payload(
+    message: str,
+    cart: list,
+    signals: dict,
+    customer_id: str | None,
+) -> dict:
+    """Build a full /api/cart response (includes WHY on each line)."""
     recipe_meta = brain.detect_recipe(message)
     recipe_result = None
+    suggestions: list[dict] = []
 
     if recipe_meta["is_recipe"]:
-        recipe_result, cart_lines, suggestions = _handle_recipe(recipe_meta, turn.cart)
-        # Build a minimal brain-style result so the rest of the flow can run
+        recipe_result, cart_lines, suggestions = _handle_recipe(recipe_meta, cart)
         result = {
-            "reply":     f"Here's your cart for {recipe_meta['dish']}!",
-            "context":   "routine",
-            "urgency":   "normal",
-            "cart":      [],          # already enriched above
+            "reply": f"Here's your cart for {recipe_meta['dish']}!",
+            "context": "routine",
+            "urgency": "normal",
+            "cart": [],
             "suggestions": [],
             "readiness": {"label": "", "essentials": []},
         }
     else:
-        # 2) brain — normal conversational path
         try:
-            result = brain.think(message, turn.cart)
-        except json.JSONDecodeError:
-            raise HTTPException(502, "Brain returned malformed data, try again.")
+            result = brain.think(message, cart, signals)
+        except json.JSONDecodeError as exc:
+            raise HTTPException(502, "Brain returned malformed data, try again.") from exc
         except Exception as exc:  # noqa: BLE001
-            raise HTTPException(502, f"Could not reach the brain: {exc}")
+            raise HTTPException(502, f"Could not reach the brain: {exc}") from exc
 
-        # 2b) Apply fallback defaults for any missing keys
-        FALLBACK_DEFAULTS = {
+        fallback_defaults = {
             "reply": "Here's your cart.",
             "context": "routine",
             "urgency": "normal",
             "cart": [],
             "suggestions": [],
-            "readiness": {
-                "label": "",
-                "essentials": []
-            }
+            "readiness": {"label": "", "essentials": []},
         }
-        for key, default in FALLBACK_DEFAULTS.items():
+        for key, default in fallback_defaults.items():
             if key not in result:
                 result[key] = default
 
-        # 2c) Validate urgency and context values
-        VALID_URGENCY = {"high", "normal"}
-        VALID_CONTEXT = {"movie_night", "party", "health", "baby", "routine", "late_night", "other"}
-
-        if result["urgency"] not in VALID_URGENCY:
+        valid_urgency = {"high", "normal"}
+        valid_context = {
+            "movie_night", "party", "health", "baby", "routine", "late_night", "other",
+        }
+        if result["urgency"] not in valid_urgency:
             result["urgency"] = "normal"
-        if result["context"] not in VALID_CONTEXT:
+        if result["context"] not in valid_context:
             result["context"] = "routine"
 
-        # 3) validate + enrich cart
         cart_lines = []
-
         cart_product_ids = {
             item.get("product_id")
             for item in result["cart"]
@@ -272,21 +293,17 @@ def cart_turn(turn: CartTurn):
                 picked.get("quantity", 1),
                 picked.get("reason", ""),
             )
-
             if not line:
                 continue
-
             alt = catalog.find_alternatives(line["id"], cart_product_ids)
             line["alternatives"] = alt["alternatives"]
-
             cart_lines.append(line)
 
         if not cart_lines:
             raise HTTPException(404, "Couldn't match anything. Try rephrasing.")
 
-        # 4) suggestions (validate ids)
         suggestions = []
-        in_cart = {l["id"] for l in cart_lines}
+        in_cart = {line["id"] for line in cart_lines}
         for s in result["suggestions"]:
             p = catalog.get(s.get("product_id"))
             if p and p["id"] not in in_cart:
@@ -294,76 +311,168 @@ def cart_turn(turn: CartTurn):
                     "id": p["id"],
                     "name": p["name"],
                     "price": p["price"],
-                    "reason": s.get("reason", "")
+                    "reason": s.get("reason", ""),
                 })
 
     context = result["context"]
-
     raw_readiness = result.get("readiness", {})
-
     enriched_essentials = []
-    seen_ids = set()
+    seen_ids: set[str] = set()
 
     for item in raw_readiness.get("essentials", []):
         product = catalog.get(item.get("product_id"))
-
-        if not product:
+        if not product or product["id"] in seen_ids:
             continue
-
-        if product["id"] in seen_ids:
-            continue
-
         seen_ids.add(product["id"])
-
         enriched_essentials.append({
             "id": product["id"],
             "name": product["name"],
             "price": product["price"],
-            "reason": item.get("reason", "")
+            "reason": item.get("reason", ""),
         })
 
     enriched_essentials = enriched_essentials[:7]
-
     label = raw_readiness.get("label", "")
-
     if not label and enriched_essentials:
         label = f"{context.replace('_', ' ').title()} readiness"
 
-    readiness = {
-        "label": label,
-        "essentials": enriched_essentials
-    }
-    context = result["context"]
-    subtotal = sum(l["line_total"] for l in cart_lines)
+    readiness = {"label": label, "essentials": enriched_essentials}
 
-    # 5) gap engine
+    trending_ids = cart_why.load_trending_ids(signals["city"])
+    past_order_ids = cart_why.load_past_order_ids(customer_id)
+    cart_why.attach_cart_why(
+        cart_lines,
+        signals,
+        trending_ids=trending_ids,
+        past_order_ids=past_order_ids,
+    )
+
+    subtotal = sum(line["line_total"] for line in cart_lines)
     gap_info = gap.compute(cart_lines, context)
-
-    # 6) SMART payment offers - cart-aware suggestions
     payment_offers = _generate_smart_payment_offers(cart_lines, subtotal, context)
 
-    payload = {
-        "reply":                   result["reply"],
-        "context":                 context,
-        "urgency":                 result["urgency"],
-        "cart":                    cart_lines,
-        "recipe":                  recipe_result,
-        "suggestions":             suggestions[:6],
-        "readiness":               readiness,
-        "subtotal":                subtotal,
+    return {
+        "reply": result["reply"],
+        "context": context,
+        "urgency": result["urgency"],
+        "cart": cart_lines,
+        "recipe": recipe_result,
+        "suggestions": suggestions[:6],
+        "readiness": readiness,
+        "subtotal": subtotal,
         "free_delivery_threshold": gap.FREE_DELIVERY_THRESHOLD,
-        "gap_amount":              gap_info["gap_amount"],
-        "gap_fillers":             gap_info["gap_fillers"],
-        "payment_offers":          payment_offers,
-        "saved_payments":          [
+        "gap_amount": gap_info["gap_amount"],
+        "gap_fillers": gap_info["gap_fillers"],
+        "payment_offers": payment_offers,
+        "saved_payments": [
             {"label": "ICICI Credit Card", "last4": "4521"},
             {"label": "Amazon Pay UPI", "last4": ""},
             {"label": "HDFC Debit Card", "last4": "8890"},
         ],
-        "cached":                  False,
+        "cached": False,
     }
 
-    cache.set(message, turn.cart, payload)
+
+def _moment_cart_generator(signals: dict, customer_id: str | None):
+    def generate(moment_id: str) -> dict | None:
+        moment = moments.get_by_id(moment_id)
+        if not moment:
+            return None
+        try:
+            return _generate_cart_payload(moment["intent"], [], signals, customer_id)
+        except HTTPException:
+            return None
+
+    return generate
+
+
+@app.get("/api/moments")
+def list_moments(
+    customer_id: str | None = None,
+    city: str = DEFAULT_CITY,
+    pool: str = "missions",
+):
+    """Personalized moment suggestions for a customer (tags + segment + city)."""
+    if pool not in ("missions", "trending"):
+        raise HTTPException(400, "pool must be 'missions' or 'trending'")
+
+    signals = _load_cart_signals(customer_id, city)
+    ranked = moments.rank_for_customer(pool, signals)
+
+    result = []
+    for moment in ranked:
+        cached = moment_cache.get(
+            customer_id,
+            signals["city"],
+            moment["id"],
+            signals["time_bucket"],
+        ) is not None
+        result.append({**moment, "cached": cached})
+
+    moment_cache.prewarm_async(
+        customer_id,
+        signals["city"],
+        signals["time_bucket"],
+        [moment["id"] for moment in ranked],
+        _moment_cart_generator(signals, customer_id),
+    )
+
+    return {
+        "customer_id": customer_id,
+        "city": signals["city"],
+        "segment": signals["segment"],
+        "tags": signals["tags"],
+        "moments": result,
+    }
+
+
+@app.get("/api/moments/{moment_id}/cart")
+def moment_cart(
+    moment_id: str,
+    customer_id: str | None = None,
+    city: str = DEFAULT_CITY,
+):
+    """Return a pre-generated cart for a moment (instant on cache hit)."""
+    moment = moments.get_by_id(moment_id)
+    if not moment:
+        raise HTTPException(404, f"Unknown moment '{moment_id}'.")
+
+    signals = _load_cart_signals(customer_id, city)
+    hit = moment_cache.get(
+        customer_id,
+        signals["city"],
+        moment_id,
+        signals["time_bucket"],
+    )
+    if hit:
+        return {**hit, "cached": True, "moment_id": moment_id}
+
+    payload = _generate_cart_payload(moment["intent"], [], signals, customer_id)
+    moment_cache.set(
+        customer_id,
+        signals["city"],
+        moment_id,
+        signals["time_bucket"],
+        payload,
+    )
+    cache.set(moment["intent"], [], payload, signals)
+    return {**payload, "cached": False, "moment_id": moment_id}
+
+
+@app.post("/api/cart")
+def cart_turn(turn: CartTurn):
+    message = turn.message.strip()
+    if not message:
+        raise HTTPException(400, "Tell me what you need.")
+
+    signals = _load_cart_signals(turn.customer_id, turn.city)
+
+    cached = cache.get(message, turn.cart, signals)
+    if cached:
+        return {**cached, "cached": True}
+
+    payload = _generate_cart_payload(message, turn.cart, signals, turn.customer_id)
+    cache.set(message, turn.cart, payload, signals)
     return payload
 
 

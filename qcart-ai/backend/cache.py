@@ -16,15 +16,27 @@ _TTL_SECONDS = 600          # 10 minutes
 _store: dict[str, tuple[float, dict]] = {}
 
 
-def _key(message: str, cart: list) -> str:
+def _key(message: str, cart: list, signals: dict | None = None) -> str:
     # Cart identity = sorted (id, qty) pairs, so order doesn't change the key.
     signature = sorted((i.get("id"), i.get("quantity", 1)) for i in cart)
-    raw = json.dumps({"m": message.strip().lower(), "c": signature}, sort_keys=True)
+    personalization = None
+    if signals:
+        personalization = {
+            "cid": signals.get("customer_id"),
+            "seg": signals.get("segment"),
+            "tags": sorted(signals.get("tags") or []),
+            "city": signals.get("city"),
+            "tb": signals.get("time_bucket"),
+        }
+    raw = json.dumps(
+        {"m": message.strip().lower(), "c": signature, "p": personalization},
+        sort_keys=True,
+    )
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
-def get(message: str, cart: list):
-    k = _key(message, cart)
+def get(message: str, cart: list, signals: dict | None = None):
+    k = _key(message, cart, signals)
     hit = _store.get(k)
     if not hit:
         return None
@@ -35,8 +47,8 @@ def get(message: str, cart: list):
     return value
 
 
-def set(message: str, cart: list, value: dict):
-    _store[_key(message, cart)] = (time.time(), value)
+def set(message: str, cart: list, value: dict, signals: dict | None = None):
+    _store[_key(message, cart, signals)] = (time.time(), value)
 
 
 def clear():

@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { sendTurn } from "../api/client.js";
 
 // Single source of truth for the conversation + live cart.
-export function useConversation() {
+export function useConversation({ customerId, city } = {}) {
   const [messages, setMessages] = useState([]); // {role:'user'|'assistant', text}
   const [cart, setCart] = useState([]);
   const [meta, setMeta] = useState({
@@ -29,7 +29,7 @@ export function useConversation() {
     setLoading(true);
     setError("");
     try {
-      const res = await sendTurn({ message: value, cart });
+      const res = await sendTurn({ message: value, cart, customerId, city });
       setCart(res.cart);
       setMeta({
         context: res.context,

@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Loader2, MessageCircle, Sparkles, Search } from "lucide-react";
+import { motion } from "framer-motion";
+import { ArrowRight, Loader2, MessageCircle, Search } from "lucide-react";
 import { useApp } from "../state/AppContext.jsx";
+import { fetchMoments } from "../api/client.js";
 import VoiceButton from "./VoiceButton.jsx";
 
-const PLACEHOLDERS = [
+const DEFAULT_PLACEHOLDERS = [
   "Rainy Day comfort food",
   "Guests at Home in 1 hour",
   "Movie Night for 4",
@@ -14,17 +15,40 @@ const PLACEHOLDERS = [
   "Feeling under the weather",
 ];
 
+const FALLBACK_CHIPS = [
+  { id: "movie-night", emoji: "🍿", label: "Movie Night", intent: "Movie night for 4" },
+  { id: "guests-at-home", emoji: "🏠", label: "Guests Coming", intent: "Guests arriving in 1 hour" },
+  { id: "rainy-day", emoji: "🌧️", label: "Rainy Day", intent: "Rainy day comfort food" },
+  { id: "fever-care", emoji: "🤒", label: "Fever Care", intent: "I have fever and feel weak" },
+  { id: "late-night-cravings", emoji: "🌙", label: "Late Night", intent: "Late night snack cravings" },
+];
+
 export default function HeroSearch({ onSubmit }) {
-  const { send, loading, setChatOpen } = useApp();
+  const { send, sendMoment, loading, setChatOpen, customerId, city } = useApp();
   const [text, setText] = useState("");
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const [displayedPlaceholder, setDisplayedPlaceholder] = useState("");
   const [isTyping, setIsTyping] = useState(true);
+  const [placeholders, setPlaceholders] = useState(DEFAULT_PLACEHOLDERS);
+  const [quickPicks, setQuickPicks] = useState(FALLBACK_CHIPS);
   const inputRef = useRef(null);
 
-  // Typing animation effect — UNCHANGED
   useEffect(() => {
-    const current = PLACEHOLDERS[placeholderIdx];
+    fetchMoments({ customerId, city, pool: "missions" })
+      .then((data) => {
+        const moments = (data.moments || []).slice(0, 5);
+        if (!moments.length) return;
+        setQuickPicks(moments);
+        setPlaceholders(moments.map((m) => m.intent));
+        setPlaceholderIdx(0);
+        setIsTyping(true);
+      })
+      .catch(() => setQuickPicks(FALLBACK_CHIPS));
+  }, [customerId, city]);
+
+  useEffect(() => {
+    if (!placeholders.length) return;
+    const current = placeholders[placeholderIdx];
     let charIdx = 0;
     let timer;
 
@@ -42,7 +66,7 @@ export default function HeroSearch({ onSubmit }) {
         setDisplayedPlaceholder((prev) => {
           if (prev.length <= 0) {
             clearInterval(timer);
-            setPlaceholderIdx((i) => (i + 1) % PLACEHOLDERS.length);
+            setPlaceholderIdx((i) => (i + 1) % placeholders.length);
             setIsTyping(true);
             return "";
           }
@@ -51,7 +75,7 @@ export default function HeroSearch({ onSubmit }) {
       }, 30);
     }
     return () => clearInterval(timer);
-  }, [placeholderIdx, isTyping]);
+  }, [placeholderIdx, isTyping, placeholders]);
 
   // Submit logic — UNCHANGED except onSubmit callback
   const submit = useCallback(
@@ -65,13 +89,17 @@ export default function HeroSearch({ onSubmit }) {
     [text, loading, send, onSubmit]
   );
 
-  const quickPicks = [
-    { label: "🍿 Movie Night", intent: "Movie night for 4" },
-    { label: "🏠 Guests Coming", intent: "Guests arriving in 1 hour" },
-    { label: "🌧️ Rainy Day", intent: "Rainy day comfort food" },
-    { label: "🤒 Fever Care", intent: "I have fever and feel weak" },
-    { label: "🌙 Late Night", intent: "Late night snack cravings" },
-  ];
+  const handleChipSelect = useCallback(
+    (moment) => {
+      onSubmit?.(moment.intent || moment.label);
+      if (moment.id) {
+        sendMoment(moment);
+      } else {
+        send(moment.intent);
+      }
+    },
+    [onSubmit, sendMoment, send]
+  );
 
   return (
     <section
@@ -222,15 +250,15 @@ export default function HeroSearch({ onSubmit }) {
         >
           {quickPicks.map((qp) => (
             <motion.button
-              key={qp.label}
-              onClick={() => submit(qp.intent)}
+              key={qp.id || qp.label}
+              onClick={() => handleChipSelect(qp)}
               disabled={loading}
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
               className="rounded-full bg-white px-5 sm:px-6 py-2.5 sm:py-3 text-sm font-medium text-gray-700 shadow-sm transition-all disabled:opacity-40 hover:shadow-md"
               style={{ border: "1px solid #E5E7EB" }}
             >
-              {qp.label}
+              {qp.emoji ? `${qp.emoji} ${qp.label}` : qp.label}
             </motion.button>
           ))}
         </motion.div>
