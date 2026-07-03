@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ShoppingCart, Zap, Plus, Minus, CheckCircle2, Sparkles, Trash2, Truck, Clock, Check, CreditCard, Tag } from "lucide-react";
+import { X, ShoppingCart, Zap, Plus, CheckCircle2, Sparkles, Trash2, Truck, Clock, Check, CreditCard, Tag } from "lucide-react";
 import { useApp } from "../state/AppContext.jsx";
 import CartItem from "./CartItem.jsx";
 import GapNudge from "./GapNudge.jsx";
@@ -214,6 +214,12 @@ export default function CartDrawer() {
 
   const freeDelivery = subtotal >= (meta.threshold || 399);
 
+  // Only show suggestions not already in the cart; slice keeps a backfill pool
+  // so adding one reveals the next relevant suggestion in its place.
+  const visibleSuggestions = (meta.suggestions || [])
+    .filter((s) => !cart.some((c) => c.id === s.id))
+    .slice(0, 3);
+
   return (
     <>
       {/* Backdrop */}
@@ -316,46 +322,17 @@ export default function CartDrawer() {
                 </div>
 
                 {/* Suggestions */}
-                {meta.suggestions?.length > 0 && (
+                {visibleSuggestions.length > 0 && (
                   <div>
                     <p className="text-[10px] font-semibold text-muted mb-1.5 uppercase tracking-wider">You might also need</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {meta.suggestions.map((s) => {
-                        const inCart = cart.find((c) => c.id === s.id);
-                        const qty = inCart?.quantity || 0;
-                        return (
-                          <div key={s.id} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] ring-1 transition ${
-                            qty > 0
-                              ? "bg-green-soft text-green ring-green/15 font-semibold"
-                              : "bg-white text-ink ring-line hover:ring-brand/30"
-                          }`}>
-                            {qty > 0 ? (
-                              <>
-                                <button
-                                  onClick={() => qty <= 1 ? removeItem(s.id) : setQty(s.id, qty - 1)}
-                                  className="grid h-5 w-5 place-items-center rounded-full hover:bg-green/10 transition"
-                                  aria-label="Decrease"
-                                >
-                                  <Minus size={10} />
-                                </button>
-                                <span className="font-display font-bold text-xs min-w-[1rem] text-center">{qty}</span>
-                                <button
-                                  onClick={() => setQty(s.id, qty + 1)}
-                                  className="grid h-5 w-5 place-items-center rounded-full hover:bg-green/10 transition"
-                                  aria-label="Increase"
-                                >
-                                  <Plus size={10} />
-                                </button>
-                                <span className="ml-0.5">{s.name}</span>
-                              </>
-                            ) : (
-                              <button onClick={() => addProduct(s)} className="inline-flex items-center gap-1">
-                                <Plus size={11} /> {s.name} · {formatINR(s.price)}
-                              </button>
-                            )}
-                          </div>
-                        );
-                      })}
+                      {visibleSuggestions.map((s) => (
+                        <div key={s.id} className="inline-flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] ring-1 transition bg-white text-ink ring-line hover:ring-brand/30">
+                          <button onClick={() => addProduct(s)} className="inline-flex items-center gap-1">
+                            <Plus size={11} /> {s.name} · {formatINR(s.price)}
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}

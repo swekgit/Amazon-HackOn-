@@ -354,7 +354,7 @@ def cart_turn(turn: CartTurn):
         "urgency":                 result["urgency"],
         "cart":                    cart_lines,
         "recipe":                  recipe_result,
-        "suggestions":             suggestions[:2],
+        "suggestions":             suggestions[:6],
         "readiness":               readiness,
         "subtotal":                subtotal,
         "free_delivery_threshold": gap.FREE_DELIVERY_THRESHOLD,
