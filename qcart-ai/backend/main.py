@@ -33,6 +33,26 @@ log = logging.getLogger(__name__)
 
 DEFAULT_CITY = "Bangalore"
 
+# City aliases for normalization (common alternate names)
+CITY_ALIASES = {
+    "bengaluru": "Bangalore",
+    "bombay": "Mumbai",
+    "madras": "Chennai",
+    "calcutta": "Kolkata",
+    "new delhi": "Delhi",
+}
+
+
+def _normalize_city(city: str) -> str:
+    """Normalize city name: trim, title-case, resolve aliases."""
+    city = city.strip()
+    city_lower = city.lower()
+    # Check aliases first
+    if city_lower in CITY_ALIASES:
+        return CITY_ALIASES[city_lower]
+    # Return title-cased version
+    return city.title()
+
 app = FastAPI(title="QCart AI")
 app.add_middleware(
     CORSMiddleware,
@@ -71,21 +91,31 @@ def list_cities():
 @app.get("/api/trending")
 def trending_products(city: str = DEFAULT_CITY):
     """Return trending products for a city, resolved via catalog."""
-    log.info("Trending request for city=%s", city)
+    normalized = _normalize_city(city)
+    log.info("Trending request for city=%s (normalized=%s)", city, normalized)
 
     try:
-        doc = db.trending.find_one({"city": {"$regex": f"^{city}$", "$options": "i"}})
+        doc = db.trending.find_one({"city": {"$regex": f"^{normalized}$", "$options": "i"}})
     except Exception as exc:
         log.error("MongoDB query failed: %s", exc)
         raise HTTPException(502, "Database error.") from exc
 
     # Fallback to default city if requested city not found
-    if not doc and city.lower() != DEFAULT_CITY.lower():
-        log.warning("City '%s' not found, falling back to %s", city, DEFAULT_CITY)
+    if not doc and normalized.lower() != DEFAULT_CITY.lower():
+        log.warning("City '%s' not found, falling back to %s", normalized, DEFAULT_CITY)
         doc = db.trending.find_one({"city": {"$regex": f"^{DEFAULT_CITY}$", "$options": "i"}})
 
+    # Global fallback: return popular catalog items if nothing in DB
     if not doc:
-        raise HTTPException(404, f"No trending products found for city: {city}")
+        log.warning("No trending data at all, using catalog fallback")
+        popular = catalog.CATALOG[:8]
+        return {
+            "city": normalized,
+            "products": [
+                {"id": p["id"], "name": p["name"], "price": p["price"], "tags": p["tags"]}
+                for p in popular
+            ],
+        }
 
     products = []
     for pid in doc.get("product_ids", []):
@@ -98,11 +128,76 @@ def trending_products(city: str = DEFAULT_CITY):
                 "tags": p["tags"],
             })
 
-    resolved_city = doc.get("city", city)
+    resolved_city = doc.get("city", normalized)
     log.info("Returning %d trending products for %s", len(products), resolved_city)
     return {"city": resolved_city, "products": products}
 
 
+
+
+IMAGE_BASE_URL = "https://qcart-ai-apoorva-images.s3.ap-south-1.amazonaws.com/products"
+
+
+@app.get("/api/buyagain")
+def buy_again(customer_id: str):
+    """Return frequently purchased products for a customer, data-driven from order history.
+
+    Sources: MongoDB customer_cycles or orders collection.
+    Falls back to empty list if no history exists.
+    """
+    # Try to get purchase history from customer cycles (predicted reorders)
+    products_freq = {}
+
+    if db.customer_cycles is not None:
+        try:
+            cycles = list(db.customer_cycles.find(
+                {"customer_id": customer_id}, {"_id": 0}
+            ))
+            for cycle in cycles:
+                for pid in cycle.get("item_ids", []):
+                    products_freq[pid] = products_freq.get(pid, 0) + cycle.get("frequency", 1)
+        except Exception as exc:
+            log.warning("buy_again cycles query failed: %s", exc)
+
+    # Also check customer document for order history
+    if db.customers is not None and not products_freq:
+        try:
+            customer = db.customers.find_one({"customer_id": customer_id})
+            if customer:
+                for order in customer.get("orders", []):
+                    for item in order.get("items", []):
+                        pid = item if isinstance(item, str) else item.get("product_id", "")
+                        if pid:
+                            products_freq[pid] = products_freq.get(pid, 0) + 1
+        except Exception as exc:
+            log.warning("buy_again orders query failed: %s", exc)
+
+    if not products_freq:
+        return {"customer_id": customer_id, "products": []}
+
+    # Sort by frequency (desc), then validate against catalog
+    sorted_pids = sorted(products_freq.keys(), key=lambda p: -products_freq[p])
+
+    results = []
+    for pid in sorted_pids:
+        p = catalog.get(pid)
+        if not p:
+            continue
+        if p.get("stock_status") == "out_of_stock":
+            continue
+        results.append({
+            "id": p["id"],
+            "name": p["name"],
+            "price": p["price"],
+            "brand": p.get("brand", ""),
+            "category": p["category"],
+            "image": f"{IMAGE_BASE_URL}/{p['image']}",
+            "frequency": products_freq[pid],
+        })
+        if len(results) >= 10:
+            break
+
+    return {"customer_id": customer_id, "products": results}
 
 
 # ── Conversational cart ────────────────────────────────────────────────────────

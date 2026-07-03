@@ -8,7 +8,6 @@ const PLACEHOLDERS = [
   "Rainy Day comfort food",
   "Guests at Home in 1 hour",
   "Movie Night for 4",
-  "Party for 6 people",
   "Study Session fuel",
   "Late Night Cravings",
   "Morning breakfast",
@@ -68,7 +67,7 @@ export default function HeroSearch({ onSubmit }) {
 
   const quickPicks = [
     { label: "🍿 Movie Night", intent: "Movie night for 4" },
-    { label: "🎉 Party for 6", intent: "Party for 6 people" },
+    { label: "🏠 Guests Coming", intent: "Guests arriving in 1 hour" },
     { label: "🌧️ Rainy Day", intent: "Rainy day comfort food" },
     { label: "🤒 Fever Care", intent: "I have fever and feel weak" },
     { label: "🌙 Late Night", intent: "Late night snack cravings" },

@@ -19,7 +19,7 @@ TIMEOUT = 60  # seconds per request (reasoning model can be slow)
 
 SCENARIOS = [
     "movie night for 4",
-    "party for 6",
+    "hosting a party",
     "weekly groceries",
     "baby care essentials",
     "I have fever",

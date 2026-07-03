@@ -7,13 +7,6 @@ export const MISSIONS = [
     description: "Snacks, drinks & something sweet",
   },
   {
-    label: "Party for 6",
-    intent: "Hosting a party for 6 people",
-    emoji: "🎉",
-    gradient: "from-pink-500 to-rose-600",
-    description: "Everything for a great time",
-  },
-  {
     label: "Rainy Day",
     intent: "Rainy day comfort food and hot drinks",
     emoji: "🌧️",
