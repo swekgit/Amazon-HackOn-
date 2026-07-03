@@ -50,6 +50,14 @@ def seed():
             "last_purchase": (now - timedelta(days=28)).isoformat(),
             "private": False,
         },
+        {
+            "customer_id": "cust_ananya",
+            "label": "Breakfast routine",
+            "item_ids": ["p0015", "p0021", MILK_ID],
+            "interval_days": 14,
+            "last_purchase": (now - timedelta(days=12)).isoformat(),
+            "private": False,
+        },
     ]
 
     for doc in documents:

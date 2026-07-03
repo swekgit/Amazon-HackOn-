@@ -1,21 +1,54 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { RotateCcw, ShoppingCart, Check, ArrowRight, Plus, Minus } from "lucide-react";
 import { useApp } from "../state/AppContext.jsx";
-import { getFrequentlyBought, getLastPurchaseDate, getPurchaseFrequency } from "../data/orders.js";
-import { getCategoryEmoji } from "../data/products.js";
-import { formatINR, formatTimeAgo } from "../lib/format.js";
+import { formatINR } from "../lib/format.js";
+
+const S3 = "https://qcart-ai-apoorva-images.s3.ap-south-1.amazonaws.com/products/";
+
+function productImageSrc(product) {
+  if (product.image?.startsWith("http")) return product.image;
+  if (product.image) return `${S3}${product.image}`;
+  return `${S3}${product.id}.jpg`;
+}
+
+function ProductImage({ product }) {
+  const [errored, setErrored] = useState(false);
+  const src = errored ? "/placeholder.jpg" : productImageSrc(product);
+
+  return (
+    <img
+      src={src}
+      alt={product.name}
+      onError={() => setErrored(true)}
+      className="h-20 w-full object-cover bg-gray-50"
+    />
+  );
+}
 
 export default function BuyAgainNow() {
-  const { addProduct, cart, setQty, removeItem, setCartOpen } = useApp();
+  const { addProduct, cart, setQty, removeItem, setCartOpen, customerId } = useApp();
   const [built, setBuilt] = useState(false);
-  const items = getFrequentlyBought();
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(`/api/buyagain?customer_id=${encodeURIComponent(customerId)}`)
+      .then((res) => (res.ok ? res.json() : { products: [] }))
+      .then((data) => setItems(data.products || []))
+      .catch(() => setItems([]))
+      .finally(() => setLoading(false));
+  }, [customerId]);
 
   const handleBuildCart = () => {
     items.forEach((p) => addProduct({ ...p, reason: "frequently purchased" }));
     setBuilt(true);
     setTimeout(() => setCartOpen(true), 600);
   };
+
+  if (loading) return null;
+  if (!items.length) return null;
 
   return (
     <div>
@@ -27,11 +60,8 @@ export default function BuyAgainNow() {
         </div>
       </div>
 
-      {/* Product scroll */}
       <div className="flex gap-3 overflow-x-auto no-scrollbar pb-3 snap-x-mandatory">
         {items.map((product, i) => {
-          const lastDate = getLastPurchaseDate(product.id);
-          const freq = getPurchaseFrequency(product.id);
           const cartItem = cart.find((c) => c.id === product.id);
           const qty = cartItem?.quantity || 0;
           return (
@@ -44,34 +74,25 @@ export default function BuyAgainNow() {
               className="shrink-0 w-44 rounded-xl bg-white flex flex-col overflow-hidden hover:shadow-md transition-shadow"
               style={{ border: "1px solid #E5E7EB" }}
             >
-              {/* Product visual */}
-              <div className="flex items-center justify-center bg-gray-50 py-4">
-                <span className="text-3xl">{getCategoryEmoji(product.category)}</span>
-              </div>
+              <ProductImage product={product} />
 
-              {/* Info */}
               <div className="flex flex-col flex-1 px-3 pt-2 pb-3">
                 <p className="font-medium text-[13px] leading-snug line-clamp-2 text-gray-900 min-h-[2.25rem]">
                   {product.name}
                 </p>
                 <p className="mt-1 font-display font-bold text-gray-900">{formatINR(product.price)}</p>
 
-                <div className="mt-1.5 flex flex-col gap-0.5">
-                  {lastDate && (
-                    <span className="text-[11px] text-gray-400">{formatTimeAgo(lastDate)}</span>
-                  )}
+                {product.frequency > 0 && (
                   <span
-                    className="inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold w-fit"
+                    className="mt-1.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold w-fit"
                     style={{ backgroundColor: "#FFF7ED", color: "#EA580C" }}
                   >
-                    Ordered {freq}x
+                    Ordered {product.frequency}x
                   </span>
-                </div>
+                )}
 
-                {/* Spacer */}
                 <div className="flex-1 min-h-1" />
 
-                {/* CTA — Add button or quantity stepper */}
                 <div className="mt-2.5">
                   {qty > 0 ? (
                     <div
@@ -117,7 +138,6 @@ export default function BuyAgainNow() {
         })}
       </div>
 
-      {/* Build Repeat Cart CTA */}
       <AnimatePresence mode="wait">
         {!built ? (
           <motion.button

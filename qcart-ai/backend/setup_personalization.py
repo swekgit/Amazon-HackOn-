@@ -56,6 +56,18 @@ def seed_cycles():
             "last_purchase": (now - timedelta(days=28)).isoformat(),
             "private": False,
         },
+        {
+            "customer_id": "cust_ananya",
+            "label": "Breakfast routine",
+            "item_ids": [
+                "p0015",  # Instant Coffee Jar (100g)
+                "p0021",  # Brown Bread (400g)
+                "p0007",  # Mother Dairy Full Cream Milk (1L)
+            ],
+            "interval_days": 14,
+            "last_purchase": (now - timedelta(days=12)).isoformat(),
+            "private": False,
+        },
     ]
     
     for cycle in cycles:
@@ -135,7 +147,7 @@ def verify_setup():
     print("="*60)
     
     checks = [
-        ("customer_cycles", db.customer_cycles.count_documents({}), 2),  # Meera + Ravi
+        ("customer_cycles", db.customer_cycles.count_documents({}), 3),  # Meera + Ravi + Ananya
         ("customer_tags", db.customer_tags.count_documents({}), 5),  # 5 demo customers
     ]
     

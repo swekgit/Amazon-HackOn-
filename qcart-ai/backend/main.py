@@ -135,7 +135,10 @@ def trending_products(city: str = DEFAULT_CITY):
 
 
 
+import re
+
 IMAGE_BASE_URL = "https://qcart-ai-apoorva-images.s3.ap-south-1.amazonaws.com/products"
+_VALID_PRODUCT_ID = re.compile(r"^p\d{4}$")
 
 
 @app.get("/api/buyagain")
@@ -180,6 +183,9 @@ def buy_again(customer_id: str):
 
     results = []
     for pid in sorted_pids:
+        if not _VALID_PRODUCT_ID.match(pid):
+            log.warning("buy_again: skipping legacy/invalid product id %r", pid)
+            continue
         p = catalog.get(pid)
         if not p:
             continue
@@ -191,7 +197,7 @@ def buy_again(customer_id: str):
             "price": p["price"],
             "brand": p.get("brand", ""),
             "category": p["category"],
-            "image": f"{IMAGE_BASE_URL}/{p['image']}",
+            "image": f"{IMAGE_BASE_URL}/{p['id']}.jpg",
             "frequency": products_freq[pid],
         })
         if len(results) >= 10:
