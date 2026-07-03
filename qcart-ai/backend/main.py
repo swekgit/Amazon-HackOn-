@@ -767,82 +767,144 @@ def _default_foryou(customer_id: str, city: str = DEFAULT_CITY):
     }
 
 
+def _suggest_items_for_offer_gap(
+    gap_amount: int,
+    cart_lines: list[dict],
+    context: str,
+    limit: int = 2,
+) -> list[dict]:
+    """Pick 1–2 catalog items that help close an offer threshold gap."""
+    if gap_amount <= 0:
+        return []
+
+    in_cart = {line["id"] for line in cart_lines}
+    relevant = set(gap.CONTEXT_TAGS.get(context, ["snack", "staple"]))
+
+    candidates = []
+    for p in catalog.CATALOG:
+        if p["id"] in in_cart:
+            continue
+        tag_score = len(relevant.intersection(p.get("tags", [])))
+        candidates.append((tag_score, abs(p["price"] - gap_amount), p))
+
+    covering = [c for c in candidates if c[2]["price"] >= gap_amount]
+    if covering:
+        covering.sort(key=lambda c: (-c[0], c[2]["price"]))
+        pool = covering
+    else:
+        candidates.sort(key=lambda c: (-c[0], c[1]))
+        pool = candidates
+
+    return [
+        {"id": p["id"], "name": p["name"], "price": p["price"]}
+        for _, _, p in pool[:limit]
+    ]
+
+
 def _generate_smart_payment_offers(cart_lines: list[dict], subtotal: float, context: str) -> list[dict]:
-    """Generate SMART cart-aware payment offers.
-    
-    Suggests which items to add to unlock offers.
-    Shows BEST applicable offer for current cart.
-    """
-    offers = []
-    
-    # Offer 1: ICICI Bank 10% off (min ₹299)
-    if subtotal >= 299:
-        # Already eligible
-        max_discount = min(subtotal * 0.10, 75)
-        offers.append({
-            "title": "ICICI Bank 10% off",
-            "detail": f"Save up to ₹{int(max_discount)} • Eligible now ✓",
-            "eligible": True,
-            "saved_amount": int(max_discount),
-        })
-    else:
-        needed = 299 - subtotal
-        offers.append({
-            "title": "ICICI Bank 10% off",
-            "detail": f"Add ₹{int(needed)} more to unlock (save up to ₹75)",
-            "eligible": False,
-            "gap_amount": int(needed),
-        })
-    
-    # Offer 2: Amazon Pay 5% cashback (min ₹200)
-    if subtotal >= 200:
-        cashback = min(subtotal * 0.05, 50)
-        offers.append({
-            "title": "Amazon Pay 5% cashback",
-            "detail": f"Earn ₹{int(cashback)} cashback • Eligible now ✓",
-            "eligible": True,
-            "saved_amount": int(cashback),
-        })
-    else:
-        needed = 200 - subtotal
-        offers.append({
-            "title": "Amazon Pay 5% cashback",
-            "detail": f"Add ₹{int(needed)} more to unlock (earn up to ₹50)",
-            "eligible": False,
-            "gap_amount": int(needed),
-        })
-    
-    # Offer 3: Context-specific bonus offer
+    """Return the best unlocked offer plus the next tier with gap + filler items."""
     cart_categories = {line["category"] for line in cart_lines}
-    
+    tiers: list[dict] = [
+        {
+            "id": "po_icici",
+            "title": "ICICI Bank 10% off",
+            "min_subtotal": 299,
+            "rate": 0.10,
+            "max_savings": 75,
+        },
+        {
+            "id": "po_amazonpay",
+            "title": "Amazon Pay 5% cashback",
+            "min_subtotal": 200,
+            "rate": 0.05,
+            "max_savings": 50,
+        },
+    ]
+
     if context == "health" or "health" in cart_categories:
-        if any("medicine" in line.get("tags", []) or "fever" in line.get("tags", []) for line in cart_lines):
-            offers.append({
+        if any(
+            "medicine" in line.get("tags", []) or "fever" in line.get("tags", [])
+            for line in cart_lines
+        ):
+            tiers.append({
+                "id": "po_health",
                 "title": "Health Essentials 15% off",
-                "detail": "Extra savings on health items • Applied automatically ✓",
-                "eligible": True,
-                "saved_amount": int(subtotal * 0.15),
+                "min_subtotal": 0,
+                "rate": 0.15,
+                "max_savings": 9999,
             })
     elif context == "party" or "party" in cart_categories:
-        if subtotal >= 500:
-            offers.append({
-                "title": "Party Combo Offer",
-                "detail": "₹100 instant discount • Applied ✓",
-                "eligible": True,
-                "saved_amount": 100,
-            })
+        tiers.append({
+            "id": "po_party",
+            "title": "Party Combo Offer",
+            "min_subtotal": 500,
+            "flat_savings": 100,
+        })
+
+    all_offers: list[dict] = []
+    for tier in tiers:
+        flat = tier.get("flat_savings")
+        min_subtotal = tier["min_subtotal"]
+        eligible = subtotal >= min_subtotal
+
+        if flat is not None:
+            saved = int(flat) if eligible else 0
         else:
-            offers.append({
-                "title": "Party Combo Offer",
-                "detail": f"Add ₹{int(500 - subtotal)} to unlock ₹100 off",
-                "eligible": False,
-                "gap_amount": int(500 - subtotal),
-            })
-    
-    # Sort by: eligible first, then by saved_amount descending
-    offers.sort(key=lambda x: (-int(x.get("eligible", False)), -x.get("saved_amount", x.get("gap_amount", 0))))
-    
-    return offers[:3]  # Return top 3 offers
+            saved = int(min(subtotal * tier["rate"], tier["max_savings"])) if eligible else 0
+
+        gap_amount = max(0, int(min_subtotal - subtotal)) if not eligible else 0
+        max_label = flat if flat is not None else tier.get("max_savings", 0)
+
+        if eligible:
+            detail = f"Save up to ₹{saved} • Eligible now ✓"
+        else:
+            detail = f"Add ₹{gap_amount} more to avail {tier['title']} (save up to ₹{max_label})"
+
+        all_offers.append({
+            "id": tier["id"],
+            "title": tier["title"],
+            "detail": detail,
+            "eligible": eligible,
+            "saved_amount": saved,
+            "savings": saved,
+            "gap_amount": gap_amount,
+            "min_subtotal": min_subtotal,
+        })
+
+    locked = sorted(
+        [o for o in all_offers if not o["eligible"]],
+        key=lambda o: (o["gap_amount"], o["min_subtotal"]),
+    )
+
+    result: list[dict] = []
+
+    for next_offer in locked[:2]:
+        offer = dict(next_offer)
+        gap = offer["gap_amount"]
+        tier_title = offer["title"]
+        max_label = next(
+            (
+                t.get("flat_savings") or t.get("max_savings", 0)
+                for t in tiers
+                if t["title"] == tier_title
+            ),
+            0,
+        )
+        suggested = _suggest_items_for_offer_gap(gap, cart_lines, context, limit=2)
+        if suggested:
+            names = ", ".join(item["name"] for item in suggested)
+            offer["detail"] = (
+                f"Add ₹{gap} more to avail {tier_title} (save up to ₹{max_label}) — try {names}"
+            )
+            offer["suggested_items"] = suggested
+        else:
+            offer["detail"] = (
+                f"Add ₹{gap} more to avail {tier_title} (save up to ₹{max_label})"
+            )
+        offer["savings"] = 0
+        result.append(offer)
+
+    return result
 
 
 @app.get("/api/all-tags")

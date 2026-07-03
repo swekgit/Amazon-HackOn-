@@ -9,7 +9,7 @@ import ReadinessPanel from "./ReadinessPanel.jsx";
 import RecipeCard from "./RecipeCard.jsx";
 
 /* ── Payment Offers + Saved Payments (Task 4) ──────────────── */
-function PaymentExtras({ paymentOffers, savedPayments }) {
+function PaymentExtras({ paymentOffers, savedPayments, onAdd, selectedPayment, onSelectPayment }) {
   if (!paymentOffers?.length && !savedPayments?.length) return null;
   return (
     <div className="space-y-3">
@@ -19,11 +19,30 @@ function PaymentExtras({ paymentOffers, savedPayments }) {
             <Tag size={10} /> Offers
           </p>
           <div className="space-y-1.5">
-            {paymentOffers.slice(0, 3).map((offer) => (
-              <div key={offer.id} className="flex items-center justify-between rounded-xl bg-fresh-soft/60 px-3 py-2 ring-1 ring-fresh/10">
-                <span className="text-xs font-medium text-fresh">{offer.title}</span>
-                {offer.savings > 0 && (
-                  <span className="text-[10px] font-bold text-fresh">Save {formatINR(offer.savings)}</span>
+            {paymentOffers.slice(0, 2).map((offer) => (
+              <div key={offer.id || offer.title} className="rounded-xl bg-fresh-soft/60 px-3 py-2 ring-1 ring-fresh/10 space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-medium text-fresh">{offer.title}</span>
+                  {offer.savings > 0 && (
+                    <span className="text-[10px] font-bold text-fresh shrink-0">Save {formatINR(offer.savings)}</span>
+                  )}
+                </div>
+                {offer.detail && (
+                  <p className="text-[10px] text-muted leading-snug">{offer.detail}</p>
+                )}
+                {offer.suggested_items?.length > 0 && onAdd && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {offer.suggested_items.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => onAdd({ ...item, reason: "unlock offer" })}
+                        className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[10px] font-medium text-ink ring-1 ring-line hover:ring-brand/30 transition"
+                      >
+                        <Plus size={9} />
+                        {item.name} · {formatINR(item.price)}
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
             ))}
@@ -36,15 +55,25 @@ function PaymentExtras({ paymentOffers, savedPayments }) {
             <CreditCard size={10} /> Pay with
           </p>
           <div className="flex flex-wrap gap-2">
-            {savedPayments.slice(0, 3).map((pm) => (
-              <button
-                key={pm.id}
-                className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-medium text-ink ring-1 ring-line hover:ring-brand/30 transition"
-              >
-                <span>{pm.icon}</span>
-                {pm.label}
-              </button>
-            ))}
+            {savedPayments.slice(0, 3).map((pm, i) => {
+              const selected = selectedPayment?.label === pm.label;
+              return (
+                <button
+                  key={pm.id || pm.label || i}
+                  type="button"
+                  onClick={() => onSelectPayment?.(pm)}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                    selected
+                      ? "bg-brand-soft text-brand-deep ring-2 ring-brand"
+                      : "bg-white text-ink ring-1 ring-line hover:ring-brand/30"
+                  }`}
+                >
+                  {selected && <Check size={12} />}
+                  <span>{pm.icon || "💳"}</span>
+                  {pm.label}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -187,8 +216,9 @@ function ReadinessBlock({ readiness, onAdd }) {
 
 /* ── Cart Drawer (main) ────────────────────────────────────── */
 export default function CartDrawer() {
-  const { cart, subtotal, setCartOpen, setChatOpen, meta, readiness, addProduct, setQty, removeItem, gapAmount, hasCart, clearCart } = useApp();
+  const { cart, subtotal, setCartOpen, setChatOpen, meta, readiness, paymentOffers, addProduct, setQty, removeItem, gapAmount, hasCart, clearCart } = useApp();
   const [placed, setPlaced] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState(null);
   const [showClearModal, setShowClearModal] = useState(false);
   const [showClearToast, setShowClearToast] = useState(false);
 
@@ -203,6 +233,7 @@ export default function CartDrawer() {
   const handleClearConfirm = () => {
     setShowClearModal(false);
     clearCart();
+    setSelectedPayment(null);
     setShowClearToast(true);
   };
 
@@ -348,8 +379,11 @@ export default function CartDrawer() {
                 {/* Payment Offers + Saved Payments */}
                 {hasCart && (
                   <PaymentExtras
-                    paymentOffers={meta.paymentOffers}
+                    paymentOffers={paymentOffers}
                     savedPayments={meta.savedPayments}
+                    onAdd={addProduct}
+                    selectedPayment={selectedPayment}
+                    onSelectPayment={setSelectedPayment}
                   />
                 )}
 
@@ -400,7 +434,9 @@ export default function CartDrawer() {
               className="w-full flex items-center justify-center gap-2 rounded-full bg-amazonYellow py-3.5 font-display font-bold text-ink shadow-md hover:shadow-lg hover:bg-yellow-400 transition-all"
             >
               <Zap size={16} />
-              Place Order · 10 min delivery
+              {selectedPayment
+                ? `Place Order · ${selectedPayment.label}`
+                : "Place Order · 10 min delivery"}
             </button>
           </div>
         )}

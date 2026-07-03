@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useMemo, useCallback, useEffect } from "react";
 import { sendTurn, fetchCities, fetchTrending } from "../api/client.js";
+import { computePaymentOffers } from "../lib/paymentOffers.js";
 import { useTheme } from "./useTheme.js";
 import { ORDER_HISTORY } from "../data/orders.js";
 
@@ -97,6 +98,11 @@ export function AppProvider({ children }) {
       present.length === raw.essentials.length,
   };
 }, [meta.readiness, meta.query, meta.context, cart]);
+
+  const paymentOffers = useMemo(() => {
+    const fillerPool = [...(meta.suggestions || []), ...(meta.gapFillers || [])];
+    return computePaymentOffers(cart, subtotal, meta.context, fillerPool);
+  }, [cart, subtotal, meta.context, meta.suggestions, meta.gapFillers]);
 
   const send = useCallback(
     async (text) => {
@@ -254,6 +260,7 @@ const swapItem = useCallback((oldId, newProduct) => {
       // Meta
       meta,
       readiness,
+      paymentOffers,
       gapAmount,
       // Data
       orderHistory: ORDER_HISTORY,
@@ -267,7 +274,7 @@ const swapItem = useCallback((oldId, newProduct) => {
     [
       cart, addProduct, removeItem, setQty,swapItem, subtotal, clearCart,
       messages, send, loading, error,
-      themeState, cartOpen, chatOpen, meta, gapAmount,
+      themeState, cartOpen, chatOpen, meta, readiness, paymentOffers, gapAmount,
       city, cities, setCity, trendingProducts, trendingLoading,
     ]
   );
