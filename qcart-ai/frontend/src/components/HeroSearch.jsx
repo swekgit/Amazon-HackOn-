@@ -176,9 +176,16 @@ export default function HeroSearch({ onSubmit }) {
               )}
             </div>
 
-            {/* Voice button — FUNCTIONALITY UNCHANGED */}
+            {/* Voice button — shows transcript before sending */}
             <div className="shrink-0 scale-90 sm:scale-100 origin-right">
-              <VoiceButton onResult={(t) => submit(t)} disabled={loading} />
+              <VoiceButton
+                onResult={(t) => {
+                  setText(t);
+                  // Brief delay so user sees the recognized text
+                  setTimeout(() => submit(t), 400);
+                }}
+                disabled={loading}
+              />
             </div>
 
             {/* Chat button — FUNCTIONALITY UNCHANGED */}

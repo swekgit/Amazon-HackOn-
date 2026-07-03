@@ -111,7 +111,11 @@ function AlternativesPanel({ item, onClose }) {
 
 export default function CartItem({ item, index, onQty, onRemove }) {
   const [showAlts, setShowAlts] = useState(false);
-  const hasAlts = !!item.alternatives;
+  const hasAlts = Array.isArray(item.alternatives)
+    ? item.alternatives.length > 0
+    : !!item.alternatives && (
+        !!(item.alternatives.cheaper || item.alternatives.faster || item.alternatives.premium)
+      );
 
   return (
     <motion.div

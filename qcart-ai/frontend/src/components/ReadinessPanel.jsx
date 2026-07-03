@@ -28,12 +28,22 @@ export default function ReadinessPanel({ readiness, onAdd }) {
   const { label, score, missing, complete } = readiness;
   const band = getBand(score, label);
 
-  // Animate bar from amber → green as score approaches 100
+  // Color bands: <40 red, 41-70 amber, 71-99 green, 100 green
   const barColor = complete
     ? "bg-green-500"
     : score >= 71
     ? "bg-green-400"
-    : "bg-amber-400";
+    : score >= 41
+    ? "bg-amber-400"
+    : "bg-red-500";
+
+  const bandTextColor = complete
+    ? "text-green-600"
+    : score >= 71
+    ? "text-green-600"
+    : score >= 41
+    ? "text-amber-600"
+    : "text-red-600";
 
   const handleAdd = (item) => {
     onAdd(item);
@@ -48,11 +58,11 @@ export default function ReadinessPanel({ readiness, onAdd }) {
     >
       {/* Band label + score */}
       <div className="flex items-center justify-between mb-2">
-        <span className={`text-xs font-semibold ${complete ? "text-green-600" : "text-ink/70"}`}>
+        <span className={`text-xs font-semibold ${bandTextColor}`}>
           {complete && <CheckCircle2 size={12} className="inline mr-1 mb-0.5" />}
           {band}
         </span>
-        <span className="text-xs text-ink/40">{score}%</span>
+        <span className={`text-xs font-semibold ${bandTextColor}`}>{score}%</span>
       </div>
 
       {/* Animated progress bar — amber → green */}
@@ -65,38 +75,46 @@ export default function ReadinessPanel({ readiness, onAdd }) {
         />
       </div>
 
-      {/* One missing-items line — only when incomplete */}
+      {/* "You're missing" text — only when incomplete */}
       <AnimatePresence>
         {!complete && missing?.length > 0 && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="mt-2.5 flex flex-wrap gap-1.5 overflow-hidden"
+            className="mt-2.5 overflow-hidden"
           >
-            {missing.slice(0, 3).map((item) => {
-              const added = addedIds.has(item.id);
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => handleAdd(item)}
-                  disabled={added}
-                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium ring-1 transition ${
-                    added
-                      ? "bg-green-soft text-green ring-green/15"
-                      : "bg-white text-ink/70 ring-black/10 hover:ring-brand/40"
-                  }`}
-                >
-                  {added ? <CheckCircle2 size={9} /> : <Plus size={9} />}
-                  {item.name} · {formatINR(item.price)}
-                </button>
-              );
-            })}
-            {missing.length > 3 && (
-              <span className="inline-flex items-center text-[10px] text-ink/40 px-1">
-                +{missing.length - 3} more
+            <p className={`text-[11px] font-medium mb-1.5 ${bandTextColor}`}>
+              You're missing:{" "}
+              <span className="text-ink/70">
+                {missing.map((m) => m.name).join(", ")}
               </span>
-            )}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {missing.slice(0, 4).map((item) => {
+                const added = addedIds.has(item.id);
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleAdd(item)}
+                    disabled={added}
+                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium ring-1 transition ${
+                      added
+                        ? "bg-green-soft text-green ring-green/15"
+                        : "bg-white text-ink/70 ring-black/10 hover:ring-brand/40"
+                    }`}
+                  >
+                    {added ? <CheckCircle2 size={9} /> : <Plus size={9} />}
+                    {item.name} · {formatINR(item.price)}
+                  </button>
+                );
+              })}
+              {missing.length > 4 && (
+                <span className="inline-flex items-center text-[10px] text-ink/40 px-1">
+                  +{missing.length - 4} more
+                </span>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
