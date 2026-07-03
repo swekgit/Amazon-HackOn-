@@ -43,9 +43,8 @@ def probe(ingredient: str, expected_group: str) -> dict | None:
     group_max, group_sum, _ = _cat._group_hits_by_swap_group(hits)
     ranked = _cat._rank_swap_groups(group_max, group_sum)
     best_grp = ranked[0]
-    runner_grp = ranked[1] if len(ranked) > 1 else "—"
+    runner_max, runner_grp = _cat._margin_runner_max(best_grp, group_max)
     best_sim = group_max[best_grp]
-    runner_max = group_max[runner_grp] if len(ranked) > 1 else 0.0
     margin = best_sim / runner_max if runner_max > 0 else 999.0
     correct = best_grp == expected_group
 
@@ -53,6 +52,7 @@ def probe(ingredient: str, expected_group: str) -> dict | None:
     print(
         f"  {ingredient!r:18s}"
         f"  best_sim={best_sim:.4f}"
+        f"  runner_grp={str(runner_grp):<18s}"
         f"  runner_max={runner_max:.4f}"
         f"  margin={margin:.2f}"
         f"  winner={best_grp:20s}"
@@ -64,6 +64,7 @@ def probe(ingredient: str, expected_group: str) -> dict | None:
         "got": best_grp,
         "best_sim": best_sim,
         "runner_max": runner_max,
+        "runner_grp": runner_grp,
         "margin": margin,
         "correct": correct,
     }

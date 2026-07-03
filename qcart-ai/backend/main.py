@@ -314,7 +314,7 @@ def _handle_recipe(recipe_meta: dict, current_cart: list) -> tuple[dict, list, l
 
         # Already-have check is swap_group based (semantic, not string matching)
         if r["swap_group"] in have_groups:
-            skipped.append({"name": ing, "why": "already have"})
+            skipped.append({"name": ing, "why": "already have", "swap_group": r["swap_group"]})
             continue
 
         best = r["product"]
@@ -335,6 +335,7 @@ def _handle_recipe(recipe_meta: dict, current_cart: list) -> tuple[dict, list, l
         "dish":      dish,
         "servings":  servings,
         "skipped":   skipped,
+        "unmatched": unmatched,
     }
 
     return recipe_block, cart_lines, []

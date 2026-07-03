@@ -25,20 +25,17 @@ _OS_REGION   = os.getenv("OPENSEARCH_REGION", "us-east-1")
 
 # ─── Titan Embed Text v2 on Bedrock ──────────────────────────────────────────
 _BEDROCK_REGION  = os.getenv("AWS_REGION", "us-east-1")
-_EMBED_MODEL_ID  = "amazon.titan-embed-text-v2:0"   # 1024-dim, normalize=true
-EMBED_DIM        = 1024
+_EMBED_MODEL_ID  = os.getenv("BEDROCK_EMBED_MODEL", "amazon.titan-embed-text-v2:0")
+EMBED_DIM        = int(os.getenv("BEDROCK_EMBED_DIM", "1024"))
 
-# ─── resolve_ingredient tunable constants ─────────────────────────────────────
-# OpenSearch innerproduct returns _score = 1 + cosine; we convert to cosine in
-# _knn_search. Typical correct English probes: max-cosine ~0.40–0.46; weak ~0.15–0.20.
-#
+# ─── resolve_ingredient tunable constants (env-backed, calibrated defaults) ───
 # SIM_FLOOR      — winning group's max-cosine must be >= this value.
-# RESOLVE_MARGIN — winner max-cosine >= runner-up max-cosine * MARGIN.
+# RESOLVE_MARGIN — winner max-cosine >= margin-runner max-cosine * MARGIN.
 # RESOLVE_K      — k-NN neighbours fetched per query.
-_GROUP_RANK_EPSILON = 0.01   # max-cosine tiebreak band for sum-of-cosine
-RESOLVE_K         = 40
-SIM_FLOOR         = 0.2996   # min English-correct max-cosine (rice 0.3153) * 0.95
-RESOLVE_MARGIN    = 0.8779   # min English-correct winner/runner-up ratio (sugar 0.9754) * 0.90
+_GROUP_RANK_EPSILON = float(os.getenv("RESOLVE_GROUP_EPSILON", "0.01"))
+RESOLVE_K         = int(os.getenv("RESOLVE_K", "40"))
+SIM_FLOOR         = float(os.getenv("SIM_FLOOR", "0.2996"))
+RESOLVE_MARGIN    = float(os.getenv("RESOLVE_MARGIN", "1.05"))
 
 # ─── kept for back-compat (used by old _opensearch_retrieve path) ─────────────
 _COHERE_MODEL_ID = _EMBED_MODEL_ID
@@ -48,8 +45,8 @@ _COHERE_BATCH    = 96
 _bedrock_client = None
 
 # ─── Deprecated local-embed vars kept so _opensearch_retrieve still compiles ──
-_EMBED_MODEL  = os.getenv("BEDROCK_EMBED_MODEL", "amazon.titan-embed-text-v2:0")
-_EMBED_REGION = os.getenv("BEDROCK_EMBED_REGION", "us-east-1")
+_EMBED_MODEL  = _EMBED_MODEL_ID
+_EMBED_REGION = os.getenv("BEDROCK_EMBED_REGION", _BEDROCK_REGION)
 
 
 def get_catalog() -> list[dict]:
@@ -272,6 +269,28 @@ def _rank_swap_groups(
     return sorted(group_max.keys(), key=cmp_to_key(_compare))
 
 
+def _margin_runner_max(
+    best_group: str,
+    group_max: dict[str, float],
+) -> tuple[float, str | None]:
+    """Max-cosine of the margin runner-up group.
+
+    Groups are sorted by max-cosine descending.  The runner is the group
+    immediately after the winner in that order — i.e. the next-best group's
+    max-cosine, NOT ranked[1] from the tiebreak ranking (which can be a
+    spurious singleton whose single hit scored slightly above the winner).
+    """
+    by_max = sorted(group_max.keys(), key=lambda sg: -group_max[sg])
+    try:
+        idx = by_max.index(best_group)
+    except ValueError:
+        return 0.0, None
+    if idx + 1 < len(by_max):
+        runner = by_max[idx + 1]
+        return group_max[runner], runner
+    return 0.0, None
+
+
 def resolve_ingredient(ingredient: str, k: int = RESOLVE_K) -> dict | None:
     """Map a free-text ingredient name to ONE real catalog product.
 
@@ -281,7 +300,8 @@ def resolve_ingredient(ingredient: str, k: int = RESOLVE_K) -> dict | None:
     3. Group hits by swap_group; rank groups by MAX cosine (sum tiebreak within ε).
     4. Apply TWO numeric confidence gates in cosine space:
          (a) winner max-cosine >= SIM_FLOOR
-         (b) winner max-cosine >= runner-up max-cosine * RESOLVE_MARGIN
+         (b) winner max-cosine >= margin-runner max-cosine * RESOLVE_MARGIN
+             (margin-runner = next group below winner in max-cosine order)
        If either gate fails → return None (caller puts ingredient in unmatched).
     5. Within the winning group: in-stock filter, then rank by cosine with small
        prime/rating boosts.
@@ -291,33 +311,40 @@ def resolve_ingredient(ingredient: str, k: int = RESOLVE_K) -> dict | None:
         or None if confidence gates fail or OpenSearch is not configured.
     """
     if not _OS_ENDPOINT:
+        log.info("resolve_ingredient(%r): UNMATCHED — OPENSEARCH_ENDPOINT not set", ingredient)
         return None
     try:
-        qvec = embed([ingredient], "search_query")[0]
+        vecs = embed([ingredient], "search_query")
+        if not vecs or not vecs[0]:
+            log.info("resolve_ingredient(%r): UNMATCHED — embed returned empty", ingredient)
+            return None
+        qvec = vecs[0]
         hits = _knn_search(qvec, k)
         if not hits:
+            log.info("resolve_ingredient(%r): UNMATCHED — no kNN hits", ingredient)
             return None
 
         group_max, group_sum, group_hits = _group_hits_by_swap_group(hits)
         ranked_groups = _rank_swap_groups(group_max, group_sum)
         best_group = ranked_groups[0]
         best_sim   = group_max[best_group]
-        runner_max = group_max[ranked_groups[1]] if len(ranked_groups) > 1 else 0.0
+        runner_max, runner_group = _margin_runner_max(best_group, group_max)
 
         # Gate (a): absolute cosine floor
         if best_sim < SIM_FLOOR:
-            log.debug(
-                "resolve_ingredient(%r): REJECTED best_sim=%.4f < SIM_FLOOR=%.4f",
-                ingredient, best_sim, SIM_FLOOR,
+            log.info(
+                "resolve_ingredient(%r): UNMATCHED — best_sim=%.4f < SIM_FLOOR=%.4f "
+                "(would-be group=%r)",
+                ingredient, best_sim, SIM_FLOOR, best_group,
             )
             return None
 
-        # Gate (b): winner must clearly beat runner-up on max-cosine
+        # Gate (b): winner must clearly beat margin-runner on group max-cosine
         if runner_max > 0 and best_sim < runner_max * RESOLVE_MARGIN:
-            log.debug(
-                "resolve_ingredient(%r): REJECTED margin fail "
-                "best_sim=%.4f runner_max=%.4f MARGIN=%.2f",
-                ingredient, best_sim, runner_max, RESOLVE_MARGIN,
+            log.info(
+                "resolve_ingredient(%r): UNMATCHED — margin fail best_sim=%.4f "
+                "runner_max=%.4f runner_group=%r MARGIN=%.2f (would-be group=%r)",
+                ingredient, best_sim, runner_max, runner_group, RESOLVE_MARGIN, best_group,
             )
             return None
 
@@ -335,9 +362,9 @@ def resolve_ingredient(ingredient: str, k: int = RESOLVE_K) -> dict | None:
             reverse=True,
         )
 
-        log.debug(
-            "resolve_ingredient(%r) → swap_group=%r best_sim=%.4f runner_max=%.4f",
-            ingredient, best_group, best_sim, runner_max,
+        log.info(
+            "resolve_ingredient(%r): MATCH swap_group=%r best_sim=%.4f product=%r",
+            ingredient, best_group, best_sim, ranked[0]["product"].get("id"),
         )
 
         return {
@@ -347,7 +374,7 @@ def resolve_ingredient(ingredient: str, k: int = RESOLVE_K) -> dict | None:
         }
 
     except Exception as exc:
-        log.warning("resolve_ingredient(%r) failed: %s", ingredient, exc)
+        log.info("resolve_ingredient(%r): UNMATCHED — safe failure: %s", ingredient, exc)
         return None
 
 
@@ -668,6 +695,11 @@ def build_index() -> None:
     products = get_catalog()
     total    = len(products)
     print(f"Catalog: {total} products to index.")
+    if total < 1000:
+        raise RuntimeError(
+            f"Refusing to build index: catalog has {total} products (expected >= 1000). "
+            "Check MongoDB connection or products.json."
+        )
 
     def embed_with_retry(text: str, max_tries: int = 5) -> list[float]:
         delay = 0.5
@@ -734,4 +766,12 @@ def build_index() -> None:
 
 
 if __name__ == "__main__":
-    build_index()
+    import sys
+    print("Building OpenSearch index (delete + recreate + bulk ingest)...")
+    print(f"  endpoint={_OS_ENDPOINT or '(not set)'}")
+    print(f"  index={_OS_INDEX}  model={_EMBED_MODEL_ID}")
+    try:
+        build_index()
+    except Exception as exc:
+        print(f"FAILED: {exc}", file=sys.stderr)
+        sys.exit(1)
