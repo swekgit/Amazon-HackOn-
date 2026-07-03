@@ -26,6 +26,7 @@ import db
 import rule_engine
 import persona
 import recommendation_engine
+import cart_why
 
 load_dotenv()
 
@@ -366,6 +367,15 @@ def cart_turn(turn: CartTurn):
         "essentials": enriched_essentials
     }
     context = result["context"]
+    trending_ids = cart_why.load_trending_ids(signals["city"])
+    past_order_ids = cart_why.load_past_order_ids(turn.customer_id)
+    cart_why.attach_cart_why(
+        cart_lines,
+        signals,
+        trending_ids=trending_ids,
+        past_order_ids=past_order_ids,
+    )
+
     subtotal = sum(l["line_total"] for l in cart_lines)
 
     # 5) gap engine

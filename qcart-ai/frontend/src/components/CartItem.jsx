@@ -1,10 +1,55 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Minus, Plus, X, Zap, TrendingDown } from "lucide-react";
+import { Minus, Plus, X, Zap, TrendingDown, HelpCircle } from "lucide-react";
 import { useApp } from "../state/AppContext.jsx";
 import { formatINR } from "../lib/format.js";
 
 const S3 = "https://qcart-ai-apoorva-images.s3.ap-south-1.amazonaws.com/products/";
+
+function WhyAffordance({ why, reason }) {
+  const text = (why || reason || "").trim();
+  if (!text) return null;
+
+  const [open, setOpen] = useState(false);
+  const parts = text.includes(" · ") ? text.split(" · ") : [text];
+
+  return (
+    <div className="relative mt-1">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold bg-canvas text-muted ring-1 ring-line hover:text-brand hover:ring-brand/25 transition"
+        aria-expanded={open}
+        aria-label="Why this item was added"
+      >
+        <HelpCircle size={10} />
+        WHY
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 4 }}
+            transition={{ duration: 0.15 }}
+            className="absolute left-0 top-full z-20 mt-1 w-56 rounded-lg bg-ink text-white p-2.5 shadow-lg text-[11px] leading-relaxed"
+          >
+            <p className="font-semibold text-white/90 mb-1">Why this item?</p>
+            <ul className="space-y-1">
+              {parts.map((part) => (
+                <li key={part} className="text-white/85 before:content-['•'] before:mr-1.5">
+                  {part}
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 function ProductImage({ product }) {
   const [errored, setErrored] = useState(false);
@@ -144,6 +189,7 @@ export default function CartItem({ item, index, onQty, onRemove }) {
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-ink">{item.name}</p>
               <p className="text-[11px] text-muted capitalize">{item.category}</p>
+              <WhyAffordance why={item.why} reason={item.reason} />
             </div>
             <button
               onClick={() => onRemove(item.id)}
