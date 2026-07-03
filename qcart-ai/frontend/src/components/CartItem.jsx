@@ -67,10 +67,10 @@ function AlternativesPanel({ item, onClose }) {
       transition={{ duration: 0.2 }}
       className="absolute left-0 top-0 bottom-0 z-10 w-44 bg-white rounded-l-card border-r border-line p-2 flex flex-col gap-1.5 shadow-md overflow-y-auto"
     >
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-[10px] font-bold text-ink/50 uppercase tracking-wider">Alternatives</span>
-        <button onClick={onClose} className="p-0.5 rounded text-ink/40 hover:text-ink transition">
-          <X size={11} />
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[11px] font-extrabold text-ink uppercase tracking-wider">Alternatives</span>
+        <button onClick={onClose} className="grid h-6 w-6 place-items-center rounded-full bg-ink/5 text-ink/60 hover:bg-ink/10 hover:text-ink transition">
+          <X size={14} />
         </button>
       </div>
       {altList.map((alt, i) => {

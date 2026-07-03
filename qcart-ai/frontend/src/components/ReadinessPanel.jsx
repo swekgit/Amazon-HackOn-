@@ -47,7 +47,7 @@ export default function ReadinessPanel({ readiness, onAdd }) {
       <div className="flex items-center justify-between mb-2">
         <span className={`text-xs font-semibold ${bandTextColor}`}>
           {complete && <CheckCircle2 size={12} className="inline mr-1 mb-0.5" />}
-          {phrase}
+          {complete ? phrase : <span className="capitalize">{phrase}</span>}
         </span>
         <span className={`text-xs font-semibold ${bandTextColor}`}>{score}%</span>
       </div>
@@ -62,7 +62,7 @@ export default function ReadinessPanel({ readiness, onAdd }) {
         />
       </div>
 
-      {/* "You're missing" text — only when incomplete */}
+      {/* Missing-item chips — only when incomplete */}
       <AnimatePresence>
         {!complete && missing?.length > 0 && (
           <motion.div
@@ -71,12 +71,6 @@ export default function ReadinessPanel({ readiness, onAdd }) {
             exit={{ opacity: 0, height: 0 }}
             className="mt-2.5 overflow-hidden"
           >
-            <p className={`text-[11px] font-medium mb-1.5 ${bandTextColor}`}>
-              You're missing:{" "}
-              <span className="text-ink/70">
-                {missing.map((m) => m.name).join(", ")}
-              </span>
-            </p>
             <div className="flex flex-wrap gap-1.5">
               {missing.slice(0, 4).map((item) => {
                 const added = addedIds.has(item.id);

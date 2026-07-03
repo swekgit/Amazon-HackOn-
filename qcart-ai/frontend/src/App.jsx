@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "./components/Header.jsx";
 import HeroSearch from "./components/HeroSearch.jsx";
+import SlimAssistantBar from "./components/SlimAssistantBar.jsx";
 import AIAssistantPanel from "./components/AIAssistantPanel.jsx";
 import MissionCards from "./components/MissionCards.jsx";
 import BuyAgainNow from "./components/BuyAgainNow.jsx";
@@ -59,6 +60,9 @@ export default function App() {
       <main className="relative z-10">
         {/* Hero search — always visible */}
         <HeroSearch onSubmit={handleSearchSubmit} />
+
+        {/* Slim inline assistant — appears below search when AI is active */}
+        <SlimAssistantBar />
 
         {/* ── Segmented Toggle ─────────────────────────────────── */}
         <div className="segmented-toggle-wrapper">

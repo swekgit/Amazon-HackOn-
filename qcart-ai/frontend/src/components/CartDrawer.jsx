@@ -119,24 +119,24 @@ function ClearCartModal({ onConfirm, onCancel }) {
   );
 }
 
-/* ── Compact AI Stats Row ──────────────────────────────────── */
+/* ── AI Stats Row — prominent grid ─────────────────────────── */
 function AIStatsRow({ buildTime, itemCount }) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <StatPill icon={<Zap size={11} />} label={`${buildTime || "—"}s`} sub="Built" color="text-brand" bg="bg-brand-soft" />
-      <StatPill icon={<Clock size={11} />} label={`${Math.max(1, itemCount * 2)} min`} sub="Saved" color="text-cta-deep" bg="bg-amber-50" />
-      <StatPill icon={<Truck size={11} />} label="10 min" sub="ETA" color="text-green" bg="bg-green-soft" />
-      <StatPill icon={<Sparkles size={11} />} label={`${itemCount}`} sub="Items" color="text-blue" bg="bg-blue-soft" />
+    <div className="grid grid-cols-4 gap-2">
+      <StatPill icon={<Zap size={16} />} label={`${buildTime || "—"}s`} sub="Built" color="text-brand" bg="bg-brand-soft" />
+      <StatPill icon={<Clock size={16} />} label={`${Math.max(1, itemCount * 2)} min`} sub="Saved" color="text-cta-deep" bg="bg-amber-50" />
+      <StatPill icon={<Truck size={16} />} label="10 min" sub="ETA" color="text-green" bg="bg-green-soft" />
+      <StatPill icon={<Sparkles size={16} />} label={`${itemCount}`} sub="Items" color="text-blue" bg="bg-blue-soft" />
     </div>
   );
 }
 
 function StatPill({ icon, label, sub, color, bg }) {
   return (
-    <div className={`flex items-center gap-1.5 rounded-full ${bg} px-2.5 py-1 shrink-0`}>
+    <div className={`flex flex-col items-center gap-0.5 rounded-xl ${bg} py-3 px-1`}>
       <span className={color}>{icon}</span>
-      <span className="text-[11px] font-semibold text-ink">{label}</span>
-      <span className="text-[9px] text-muted">{sub}</span>
+      <span className="text-sm font-bold text-ink leading-tight">{label}</span>
+      <span className="text-[9px] font-medium text-muted uppercase tracking-wide">{sub}</span>
     </div>
   );
 }
@@ -146,7 +146,7 @@ function ReadinessBlock({ readiness, onAdd }) {
   const [addedIds, setAddedIds] = useState(new Set());
 
   if (!readiness) return null;
-  const { label, score, missing } = readiness;
+  const { label, phrase, score, missing } = readiness;
 
   if (score === 100) {
     return (
@@ -168,30 +168,31 @@ function ReadinessBlock({ readiness, onAdd }) {
     setAddedIds((prev) => new Set(prev).add(item.id));
   };
 
+  const bandBg = score < 40 ? "bg-red-50" : score < 71 ? "bg-amber-50" : "bg-green-50";
+  const ringColor = score < 40 ? "ring-red-200" : score < 71 ? "ring-amber-200" : "ring-green-200";
+
   return (
-    <div className="rounded-card bg-white p-4 ring-1 ring-line">
-      {/* Header + progress */}
-      <div className="flex items-center justify-between mb-2">
-        <span className={`text-xs font-semibold ${bandTextColor}`}>{bandLabel} — {label}</span>
-        <span className={`text-xs font-bold ${bandTextColor}`}>{score}%</span>
-      </div>
-      <div className="h-2 rounded-full bg-canvas overflow-hidden">
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${score}%` }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className={`h-full rounded-full ${barColor}`}
-        />
+    <div className={`rounded-2xl ${bandBg} p-4 ring-1 ${ringColor}`}>
+      {/* Phrase heading — kept as-is, styled attractively */}
+      <p className={`text-sm font-bold capitalize ${bandTextColor} leading-snug`}>
+        {phrase || `${bandLabel} — ${label}`}
+      </p>
+
+      {/* Score + progress bar */}
+      <div className="flex items-center gap-3 mt-2.5">
+        <div className="flex-1 h-2.5 rounded-full bg-white/70 overflow-hidden">
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${score}%` }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className={`h-full rounded-full ${barColor}`}
+          />
+        </div>
+        <span className={`text-sm font-bold ${bandTextColor} tabular-nums`}>{score}%</span>
       </div>
 
-      {/* "You're missing" text */}
-      <p className={`text-[11px] font-medium mt-3 mb-1.5 ${bandTextColor}`}>
-        You're missing:{" "}
-        <span className="text-ink/70">
-          {missing.map((m) => m.name).join(", ")}
-        </span>
-      </p>
-      <div className="flex flex-wrap gap-1.5">
+      {/* Missing item chips — no redundant text */}
+      <div className="flex flex-wrap gap-1.5 mt-3">
         {missing.map((item) => {
           const isAdded = addedIds.has(item.id);
           return (
@@ -352,21 +353,7 @@ export default function CartDrawer() {
                   </AnimatePresence>
                 </div>
 
-                {/* Suggestions */}
-                {visibleSuggestions.length > 0 && (
-                  <div>
-                    <p className="text-[10px] font-semibold text-muted mb-1.5 uppercase tracking-wider">You might also need</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {visibleSuggestions.map((s) => (
-                        <div key={s.id} className="inline-flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] ring-1 transition bg-white text-ink ring-line hover:ring-brand/30">
-                          <button onClick={() => addProduct(s)} className="inline-flex items-center gap-1">
-                            <Plus size={11} /> {s.name} · {formatINR(s.price)}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+
 
                 {/* Gap Nudge */}
                 <GapNudge gapAmount={gapAmount} fillers={meta.gapFillers} onAdd={addProduct} threshold={meta.threshold} subtotal={subtotal} />
