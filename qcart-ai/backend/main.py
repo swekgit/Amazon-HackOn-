@@ -187,10 +187,8 @@ def cart_turn(turn: CartTurn):
             if not line:
                 continue
 
-            line["alternatives"] = catalog.find_alternatives(
-                line["id"],
-                cart_product_ids,
-            )
+            alt = catalog.find_alternatives(line["id"], cart_product_ids)
+            line["alternatives"] = alt["alternatives"]
 
             cart_lines.append(line)
 
@@ -264,8 +262,15 @@ def cart_turn(turn: CartTurn):
         "free_delivery_threshold": gap.FREE_DELIVERY_THRESHOLD,
         "gap_amount":              gap_info["gap_amount"],
         "gap_fillers":             gap_info["gap_fillers"],
-        "payment_offers":          [],
-        "saved_payments":          [],
+        "payment_offers":          [
+            {"title": "10% off with ICICI Bank", "detail": "Up to ₹75 on orders above ₹299"},
+            {"title": "Amazon Pay 5% cashback", "detail": "Max ₹50"},
+        ],
+        "saved_payments":          [
+            {"label": "ICICI Credit Card", "last4": "4521"},
+            {"label": "Amazon Pay UPI", "last4": ""},
+            {"label": "HDFC Debit Card", "last4": "8890"},
+        ],
         "cached":                  False,
     }
 
@@ -326,7 +331,8 @@ def _handle_recipe(recipe_meta: dict, current_cart: list) -> tuple[dict, list, l
             unmatched.append(ing)
             continue
 
-        line["alternatives"] = catalog.find_alternatives(best["id"], cart_product_ids)
+        alt = catalog.find_alternatives(best["id"], cart_product_ids)
+        line["alternatives"] = alt["alternatives"]
         cart_product_ids.add(best["id"])
         cart_lines.append(line)
 
