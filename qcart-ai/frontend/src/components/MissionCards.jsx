@@ -1,16 +1,32 @@
 import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
-import { getMomentsForCustomer } from "../data/missions.js";
 import { useApp } from "../state/AppContext.jsx";
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
+import { fetchMoments } from "../api/client.js";
 
 const MISSION_VISUALS = {
   "Movie Night": { iconBg: "bg-purple-50", borderAccent: "border-purple-200" },
+  "Premium Movie": { iconBg: "bg-purple-50", borderAccent: "border-purple-200" },
   "Rainy Day": { iconBg: "bg-cyan-50", borderAccent: "border-cyan-200" },
   "Guests at Home": { iconBg: "bg-amber-50", borderAccent: "border-amber-200" },
+  "House Party": { iconBg: "bg-pink-50", borderAccent: "border-pink-200" },
   "Study Session": { iconBg: "bg-blue-50", borderAccent: "border-blue-200" },
+  "Exam Week": { iconBg: "bg-blue-50", borderAccent: "border-blue-200" },
+  "Hostel Midnight": { iconBg: "bg-indigo-50", borderAccent: "border-indigo-200" },
+  "Budget Binge": { iconBg: "bg-yellow-50", borderAccent: "border-yellow-200" },
+  "Coffee Morning": { iconBg: "bg-amber-50", borderAccent: "border-amber-200" },
+  "WFH Lunch": { iconBg: "bg-slate-50", borderAccent: "border-slate-200" },
+  "Office Party": { iconBg: "bg-pink-50", borderAccent: "border-pink-200" },
+  "After Office": { iconBg: "bg-violet-50", borderAccent: "border-violet-200" },
+  "Kids Tiffin": { iconBg: "bg-lime-50", borderAccent: "border-lime-200" },
+  "Sunday Brunch": { iconBg: "bg-orange-50", borderAccent: "border-orange-200" },
+  "Baby Care": { iconBg: "bg-pink-50", borderAccent: "border-pink-200" },
+  "Family Stock-up": { iconBg: "bg-emerald-50", borderAccent: "border-emerald-200" },
   "Fever Care": { iconBg: "bg-red-50", borderAccent: "border-red-200" },
-  "Summer Essentials": { iconBg: "bg-orange-50", borderAccent: "border-orange-200" },
+  "Healthy Restock": { iconBg: "bg-green-50", borderAccent: "border-green-200" },
+  "Easy Meals": { iconBg: "bg-teal-50", borderAccent: "border-teal-200" },
+  "Veg Dinner": { iconBg: "bg-green-50", borderAccent: "border-green-200" },
+  "Summer Cool": { iconBg: "bg-orange-50", borderAccent: "border-orange-200" },
   "Late Night Cravings": { iconBg: "bg-indigo-50", borderAccent: "border-indigo-200" },
 };
 
@@ -23,16 +39,18 @@ const cardVariants = {
 };
 
 export default function MissionCards({ onMomentSelect }) {
-  const { send, loading, customerProfile, city } = useApp();
+  const { sendMoment, loading, customerId, city } = useApp();
+  const [moments, setMoments] = useState([]);
 
-  const moments = useMemo(
-    () => getMomentsForCustomer(customerProfile, city),
-    [customerProfile, city]
-  );
+  useEffect(() => {
+    fetchMoments({ customerId, city, pool: "missions" })
+      .then((data) => setMoments(data.moments || []))
+      .catch(() => setMoments([]));
+  }, [customerId, city]);
 
   const handleSelect = (mi) => {
     onMomentSelect?.(mi.label);
-    send(mi.intent);
+    sendMoment(mi);
   };
 
   return (
@@ -47,7 +65,7 @@ export default function MissionCards({ onMomentSelect }) {
           const visual = MISSION_VISUALS[mi.label] || { iconBg: "bg-gray-50", borderAccent: "border-gray-200" };
           return (
             <motion.button
-              key={mi.label}
+              key={mi.id}
               custom={i}
               variants={cardVariants}
               initial="hidden"
@@ -63,7 +81,6 @@ export default function MissionCards({ onMomentSelect }) {
                 ${mi.urgent ? "border-l-4 border-l-rose-400" : ""}
               `}
             >
-              {/* Emoji icon with tinted background */}
               <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl ${visual.iconBg} mb-2`}>
                 <span className="text-2xl">{mi.emoji}</span>
               </div>
@@ -74,6 +91,12 @@ export default function MissionCards({ onMomentSelect }) {
               <p className="mt-0.5 text-xs text-ink/50 leading-snug">
                 {mi.description}
               </p>
+
+              {mi.cached && (
+                <span className="mt-2 inline-block rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5 text-[10px] font-semibold">
+                  Ready
+                </span>
+              )}
 
               {mi.urgent && (
                 <span className="mt-2 inline-block rounded-full bg-rose-50 text-rose-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider">

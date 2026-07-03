@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useMemo, useCallback, useEffect } from "react";
-import { sendTurn, fetchCities, fetchTrending } from "../api/client.js";
+import { sendTurn, fetchCities, fetchTrending, fetchMomentCart } from "../api/client.js";
 import { computePaymentOffers } from "../lib/paymentOffers.js";
 import { useTheme } from "./useTheme.js";
 import { ORDER_HISTORY } from "../data/orders.js";
@@ -110,6 +110,25 @@ export function AppProvider({ children }) {
     return computePaymentOffers(cart, subtotal, meta.context, fillerPool);
   }, [cart, subtotal, meta.context, meta.suggestions, meta.gapFillers]);
 
+  const applyCartResponse = useCallback((res, queryText, buildTime) => {
+    setCart(res.cart);
+    setMeta({
+      context: res.context,
+      urgency: res.urgency,
+      threshold: res.free_delivery_threshold,
+      gapFillers: res.gap_fillers || [],
+      suggestions: res.suggestions || [],
+      readiness: res.readiness || null,
+      buildTime,
+      recipe: res.recipe || null,
+      paymentOffers: res.payment_offers || [],
+      savedPayments: res.saved_payments || [],
+      query: queryText,
+    });
+    setMessages((m) => [...m, { role: "assistant", text: res.reply }]);
+    if (res.cart.length > 0) setCartOpen(true);
+  }, []);
+
   const send = useCallback(
     async (text) => {
       const value = (text || "").trim();
@@ -117,7 +136,6 @@ export function AppProvider({ children }) {
       setMessages((m) => [...m, { role: "user", text: value }]);
       setLoading(true);
       setError("");
-      // Detect theme from user input
       themeState.setThemeByContext(value);
       const startTime = performance.now();
       try {
@@ -128,30 +146,47 @@ export function AppProvider({ children }) {
           city,
         });
         const buildTime = ((performance.now() - startTime) / 1000).toFixed(1);
-        setCart(res.cart);
-        setMeta({
-          context: res.context,
-          urgency: res.urgency,
-          threshold: res.free_delivery_threshold,
-          gapFillers: res.gap_fillers || [],
-          suggestions: res.suggestions || [],
-          readiness: res.readiness || null,
-          buildTime,
-          recipe: res.recipe || null,
-          paymentOffers: res.payment_offers || [],
-          savedPayments: res.saved_payments || [],
-          query: value,
-        });
-        setMessages((m) => [...m, { role: "assistant", text: res.reply }]);
-        // Auto-open cart on first build
-        if (res.cart.length > 0) setCartOpen(true);
+        applyCartResponse(res, value, buildTime);
       } catch (e) {
         setError(e.message);
       } finally {
         setLoading(false);
       }
     },
-    [loading, cart, themeState, customerId, city]
+    [loading, cart, themeState, customerId, city, applyCartResponse]
+  );
+
+  const sendMoment = useCallback(
+    async (moment) => {
+      if (!moment?.id || loading) return;
+      const queryText = moment.intent || moment.label;
+      setMessages((m) => [...m, { role: "user", text: queryText }]);
+      setLoading(true);
+      setError("");
+      themeState.setThemeByContext(queryText);
+      const startTime = performance.now();
+      try {
+        const res = await fetchMomentCart(moment.id, customerId, city);
+        const buildTime = ((performance.now() - startTime) / 1000).toFixed(1);
+        applyCartResponse(res, queryText, buildTime);
+      } catch (e) {
+        try {
+          const res = await sendTurn({
+            message: queryText,
+            cart: [],
+            customerId,
+            city,
+          });
+          const buildTime = ((performance.now() - startTime) / 1000).toFixed(1);
+          applyCartResponse(res, queryText, buildTime);
+        } catch (fallbackErr) {
+          setError(fallbackErr.message || e.message);
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [loading, customerId, city, themeState, applyCartResponse]
   );
 
   const setQty = useCallback(
@@ -269,6 +304,7 @@ const swapItem = useCallback((oldId, newProduct) => {
       // Conversation
       messages,
       send,
+      sendMoment,
       loading,
       error,
       // Theme
@@ -301,7 +337,7 @@ const swapItem = useCallback((oldId, newProduct) => {
     }),
     [
       cart, addProduct, removeItem, setQty,swapItem, subtotal, clearCart,
-      messages, send, loading, error,
+      messages, send, sendMoment, loading, error,
       themeState, cartOpen, chatOpen, meta, readiness, paymentOffers, gapAmount,
       city, cities, setCity, trendingProducts, trendingLoading,
       customerId, customerProfile,
