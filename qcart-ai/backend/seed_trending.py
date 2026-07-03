@@ -1,6 +1,10 @@
 """One-time seed script — populates db.trending with sample city data.
 
-Run:  python seed_trending.py
+Usage:
+    python seed_trending.py
+
+Uses 4-digit product IDs that exist in the Mongo catalog (db.products).
+Does NOT modify db.products.
 """
 
 import db
@@ -8,30 +12,28 @@ import db
 SEED_DATA = [
     {
         "city": "Bangalore",
-        "product_ids": ["p001", "p002", "p010", "p020", "p033"],
+        "product_ids": ["p0015", "p0066", "p0013", "p0005", "p0034"],
     },
     {
         "city": "Chennai",
-        "product_ids": ["p015", "p016", "p022", "p028", "p034"],
+        "product_ids": ["p0016", "p0020", "p0021", "p0030", "p0031"],
     },
     {
         "city": "Mumbai",
-        "product_ids": ["p005", "p006", "p013", "p060", "p064"],
+        "product_ids": ["p0005", "p0006", "p0013", "p0060", "p0064"],
     },
     {
         "city": "Delhi",
-        "product_ids": ["p023", "p024", "p025", "p027", "p030"],
+        "product_ids": ["p0023", "p0024", "p0025", "p0027", "p0030"],
     },
 ]
 
 
 def seed():
-    # Clear existing trending data to avoid duplicates
     db.trending.delete_many({})
     result = db.trending.insert_many(SEED_DATA)
     print(f"[OK] Seeded {len(result.inserted_ids)} city trending documents")
 
-    # Verify
     for doc in db.trending.find({}, {"_id": 0}):
         print(f"  {doc['city']}: {doc['product_ids']}")
 

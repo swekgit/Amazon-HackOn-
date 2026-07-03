@@ -25,6 +25,8 @@ export default function ProductCard({
 
   const imgSrc = imgErrored
     ? "/placeholder.jpg"
+    : product.image?.startsWith("http")
+    ? product.image
     : `${S3}${product.id}.jpg`;
 
   return (

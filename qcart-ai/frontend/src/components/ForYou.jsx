@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Loader2, Sparkles, Tag, TrendingUp } from "lucide-react";
+import { Loader2, Sparkles, Tag } from "lucide-react";
 import { useApp } from "../state/AppContext.jsx";
 import ProductCard from "./ProductCard.jsx";
 import PredictedForYouCard from "./PredictedForYouCard.jsx";
@@ -31,7 +31,6 @@ export default function ForYou() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [trending, setTrending] = useState(null);
   const [predictions, setPredictions] = useState([]);
 
   useEffect(() => {
@@ -51,12 +50,6 @@ export default function ForYou() {
         segment: json.customer?.segment || "working",
         tags: json.tags || [],
       });
-      try {
-        const trendRes = await fetch(`/api/trending?city=${encodeURIComponent(city)}`);
-        if (trendRes.ok) setTrending(await trendRes.json());
-      } catch {
-        setTrending(null);
-      }
     } catch (err) {
       setError(err.message || "Something went wrong");
     } finally {
@@ -166,25 +159,6 @@ export default function ForYou() {
                     badgeColor="bg-fresh"
                     oldPrice={deal.price}
                     subtitle={deal.pitch || deal.offer_label}
-                    index={i}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* 7. Trending */}
-          {trending?.products?.length > 0 && (
-            <section className="space-y-4">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-smart" />
-                <h2 className="font-display text-xl">Trending in {trending.city}</h2>
-              </div>
-              <div className="grid gap-4 grid-cols-1 min-[360px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                {trending.products.map((item, i) => (
-                  <ProductCard
-                    key={item.id}
-                    product={withImage(item)}
                     index={i}
                   />
                 ))}

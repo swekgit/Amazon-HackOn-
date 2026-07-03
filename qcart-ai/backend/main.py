@@ -100,22 +100,9 @@ def trending_products(city: str = DEFAULT_CITY):
         log.error("MongoDB query failed: %s", exc)
         raise HTTPException(502, "Database error.") from exc
 
-    # Fallback to default city if requested city not found
-    if not doc and normalized.lower() != DEFAULT_CITY.lower():
-        log.warning("City '%s' not found, falling back to %s", normalized, DEFAULT_CITY)
-        doc = db.trending.find_one({"city": {"$regex": f"^{DEFAULT_CITY}$", "$options": "i"}})
-
-    # Global fallback: return popular catalog items if nothing in DB
     if not doc:
-        log.warning("No trending data at all, using catalog fallback")
-        popular = catalog.CATALOG[:8]
-        return {
-            "city": normalized,
-            "products": [
-                {"id": p["id"], "name": p["name"], "price": p["price"], "tags": p["tags"]}
-                for p in popular
-            ],
-        }
+        log.warning("No trending data for city '%s'", normalized)
+        return {"city": normalized, "products": []}
 
     products = []
     for pid in doc.get("product_ids", []):
@@ -126,6 +113,7 @@ def trending_products(city: str = DEFAULT_CITY):
                 "name": p["name"],
                 "price": p["price"],
                 "tags": p["tags"],
+                "image": f"{IMAGE_BASE_URL}/{p['id']}.jpg",
             })
 
     resolved_city = doc.get("city", normalized)
