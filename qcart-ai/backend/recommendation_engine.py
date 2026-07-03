@@ -45,6 +45,37 @@ SEGMENT_TAGS = {
 }
 
 
+# Shared behavioral-tag -> product-vocabulary tag mapping.
+# Customer tags are behavioral IDs (health_conscious, coffee_lover, ...) that
+# never equal catalog tag strings (healthy, coffee, ...). This mapping bridges
+# them and is the single source of truth reused by main._score_product().
+BEHAVIORAL_TAG_MAP = {
+    "party_host": {"party"},
+    "entertainer": {"party", "snack"},
+    "premium_buyer": {"premium"},
+    "coffee_lover": {"coffee"},
+    "snacker": {"snack"},
+    "fruit_lover": {"fruit"},
+    "health_conscious": {"healthy"},
+    "vegetarian": {"vegetarian"},
+    "breakfast_routine": {"breakfast"},
+    "night_owl": {"instant", "snack"},
+    "household_planner": {"household", "cleaning", "staple"},
+    "weekly_planner": {"staple", "household"},
+    "family_planner": {"family", "bulk"},
+    "tea_lover": {"tea"},
+    "new_parent": {"baby"},
+}
+
+
+def map_behavioral_tags(tags: list[str]) -> set[str]:
+    """Translate customer behavioral tag IDs to product-vocabulary tags."""
+    mapped: set[str] = set()
+    for tag in tags or []:
+        mapped |= BEHAVIORAL_TAG_MAP.get(tag, set())
+    return mapped
+
+
 # ══════════════════════════════════════════════════════════
 #  RECOMMENDATION GENERATION
 # ══════════════════════════════════════════════════════════
@@ -66,11 +97,17 @@ def get_recommendations(
     time_tags = TIME_BUCKET_TAGS.get(time_bucket, [])
     segment_tags = SEGMENT_TAGS.get(segment, [])
 
-    # Build a combined query from all signals
+    # Translate behavioral customer tags -> product-vocabulary tags so both the
+    # embed query and the re-rank reflect real catalog tags (e.g. coffee_lover
+    # -> "coffee", health_conscious -> "healthy").
+    mapped_tags = map_behavioral_tags(tags)
+
+    # Build a combined query from all signals. Time-of-day tags are deliberately
+    # NOT added here: they used to flood the query with "instant noodles" and
+    # dominate retrieval for everyone. Customer + segment product tags drive it.
     query_parts = []
-    query_parts.extend(tags[:5])       # Top customer tags
-    query_parts.extend(segment_tags[:3])  # Segment-specific tags
-    query_parts.extend(time_tags[:2])     # Time-of-day relevance
+    query_parts.extend(sorted(mapped_tags))  # Mapped customer product tags
+    query_parts.extend(segment_tags[:3])     # Segment-specific tags
 
     query = " ".join(query_parts) if query_parts else "staple breakfast daily"
 
@@ -82,20 +119,21 @@ def get_recommendations(
     if not candidates:
         return []
 
-    # Score and pick top 8
+    # Score and pick top 8. Customer tags dominate; time bucket is only a minor
+    # tiebreaker so time-of-day never overrides personalization.
     scored = []
     for p in candidates:
         ptags = set(p.get("tags", []))
         score = 0
 
-        # Customer tag overlap
-        score += len(ptags.intersection(set(tags))) * 3
+        # Mapped customer tag overlap (highest weight)
+        score += len(ptags.intersection(mapped_tags)) * 5
 
         # Segment tag overlap
         score += len(ptags.intersection(set(segment_tags))) * 2
 
-        # Time bucket overlap
-        score += len(ptags.intersection(set(time_tags))) * 2
+        # Time bucket overlap (minor tiebreaker only)
+        score += len(ptags.intersection(set(time_tags))) * 1
 
         scored.append((score, p))
 

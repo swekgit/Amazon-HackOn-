@@ -810,24 +810,9 @@ def _score_product(product: dict, tags: list[str], segment: str = "working") -> 
 
     ptags = set(product.get("tags", []))
 
-    # Tag-based scoring
-    mapping = {
-        "party_host": {"party"},
-        "entertainer": {"party", "snack"},
-        "premium_buyer": {"premium"},
-        "coffee_lover": {"coffee"},
-        "snacker": {"snack"},
-        "fruit_lover": {"fruit"},
-        "health_conscious": {"healthy"},
-        "vegetarian": {"vegetarian"},
-        "breakfast_routine": {"breakfast"},
-        "night_owl": {"instant", "snack"},
-        "household_planner": {"household", "cleaning", "staple"},
-        "weekly_planner": {"staple", "household"},
-        "family_planner": {"family", "bulk"},
-        "tea_lover": {"tea"},
-        "new_parent": {"baby"},
-    }
+    # Tag-based scoring — shared behavioral->product tag map (single source of
+    # truth, also used by recommendation_engine.get_recommendations()).
+    mapping = recommendation_engine.BEHAVIORAL_TAG_MAP
 
     for tag in tags:
         score += len(ptags.intersection(mapping.get(tag, set()))) * 3
