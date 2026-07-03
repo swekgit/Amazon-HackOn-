@@ -46,16 +46,20 @@ export function AppProvider({ children }) {
     return null;
   }
 
-  const cartIds = new Set(
-    cart.map((item) => item.id)
-  );
+  const satisfiedIds = new Set();
+  for (const item of cart) {
+    satisfiedIds.add(item.id);
+    for (const id of item.satisfiesEssentials || []) {
+      satisfiedIds.add(id);
+    }
+  }
 
   const present = raw.essentials.filter((e) =>
-    cartIds.has(e.id)
+    satisfiedIds.has(e.id)
   );
 
   const missing = raw.essentials.filter((e) =>
-    !cartIds.has(e.id)
+    !satisfiedIds.has(e.id)
   );
 
   const score = Math.round(
@@ -137,6 +141,7 @@ const swapItem = useCallback((oldId, newProduct) => {
         quantity: item.quantity,
         reason: newProduct.reason || item.reason || "",
         line_total: newProduct.price * item.quantity,
+        satisfiesEssentials: item.satisfiesEssentials ?? [item.id],
       };
     })
   );
