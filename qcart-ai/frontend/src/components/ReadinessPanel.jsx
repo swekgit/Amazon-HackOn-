@@ -5,28 +5,15 @@ import { formatINR } from "../lib/format.js";
 
 /**
  * Minimal Readiness Panel — Task 1
- * Shows: animated progress bar, band label, one missing-items line.
- * Bands: 0-40 "Just started" | 41-70 "Almost there" | 71-99 "Good to go" | 100 context-aware
+ * Shows: animated progress bar, moment-aware phrase, missing-items line.
+ * Bands: 0-40 | 41-70 | 71-99 | 100 — same score buckets as before.
  */
-function getBand(score, label) {
-  if (score >= 100) {
-    if (label?.toLowerCase().includes("movie")) return "Movie-night ready ✓";
-    if (label?.toLowerCase().includes("party")) return "Party ready ✓";
-    if (label?.toLowerCase().includes("recipe") || label?.toLowerCase().includes("cook")) return "Ready to cook ✓";
-    return "You're all set ✓";
-  }
-  if (score >= 71) return "Good to go";
-  if (score >= 41) return "Almost there";
-  return "Just started";
-}
-
 export default function ReadinessPanel({ readiness, onAdd }) {
   const [addedIds, setAddedIds] = useState(new Set());
 
   if (!readiness?.essentials?.length) return null;
 
-  const { label, score, missing, complete } = readiness;
-  const band = getBand(score, label);
+  const { phrase, score, missing, complete } = readiness;
 
   // Color bands: <40 red, 41-70 amber, 71-99 green, 100 green
   const barColor = complete
@@ -60,7 +47,7 @@ export default function ReadinessPanel({ readiness, onAdd }) {
       <div className="flex items-center justify-between mb-2">
         <span className={`text-xs font-semibold ${bandTextColor}`}>
           {complete && <CheckCircle2 size={12} className="inline mr-1 mb-0.5" />}
-          {band}
+          {phrase}
         </span>
         <span className={`text-xs font-semibold ${bandTextColor}`}>{score}%</span>
       </div>
@@ -128,7 +115,7 @@ export default function ReadinessPanel({ readiness, onAdd }) {
             exit={{ opacity: 0 }}
             className="mt-2 text-center text-xs text-green-600 font-medium"
           >
-            🎉 {band}
+            🎉 {phrase}
           </motion.div>
         )}
       </AnimatePresence>

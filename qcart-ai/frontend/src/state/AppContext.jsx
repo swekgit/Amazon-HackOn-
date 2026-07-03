@@ -19,6 +19,7 @@ export function AppProvider({ children }) {
   recipe: null,
   paymentOffers: [],
   savedPayments: [],
+  query: "",
 });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -66,8 +67,28 @@ export function AppProvider({ children }) {
     (present.length / raw.essentials.length) * 100
   );
 
+  const momentName = (() => {
+    if (meta.query) return meta.query.trim().toLowerCase();
+    const fromLabel = raw.label?.replace(/\s*readiness\s*$/i, "").trim();
+    if (fromLabel) return fromLabel.toLowerCase();
+    if (meta.context && !["routine", "other"].includes(meta.context)) {
+      return meta.context.replace(/_/g, " ").toLowerCase();
+    }
+    return "your moment";
+  })();
+
+  const phrase = score >= 100
+    ? `you are all set for ${momentName}`
+    : score >= 71
+    ? `good to go for ${momentName}`
+    : score >= 41
+    ? `almost ready for ${momentName}`
+    : `missing out on ${momentName}`;
+
   return {
     label: raw.label,
+    momentName,
+    phrase,
     essentials: raw.essentials,
     present,
     missing,
@@ -75,7 +96,7 @@ export function AppProvider({ children }) {
     complete:
       present.length === raw.essentials.length,
   };
-}, [meta.readiness, cart]);
+}, [meta.readiness, meta.query, meta.context, cart]);
 
   const send = useCallback(
     async (text) => {
@@ -102,6 +123,7 @@ export function AppProvider({ children }) {
           recipe: res.recipe || null,
           paymentOffers: res.payment_offers || [],
           savedPayments: res.saved_payments || [],
+          query: value,
         });
         setMessages((m) => [...m, { role: "assistant", text: res.reply }]);
         // Auto-open cart on first build
