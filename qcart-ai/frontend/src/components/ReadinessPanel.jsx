@@ -47,7 +47,9 @@ export default function ReadinessPanel({ readiness, onAdd }) {
       <div className="flex items-center justify-between mb-2">
         <span className={`text-xs font-semibold ${bandTextColor}`}>
           {complete && <CheckCircle2 size={12} className="inline mr-1 mb-0.5" />}
-          {complete ? phrase : <span className="capitalize">{phrase}</span>}
+          {complete
+            ? phrase.charAt(0).toUpperCase() + phrase.slice(1)
+            : <span className="capitalize">{phrase}</span>}
         </span>
         <span className={`text-xs font-semibold ${bandTextColor}`}>{score}%</span>
       </div>
@@ -96,20 +98,6 @@ export default function ReadinessPanel({ readiness, onAdd }) {
                 </span>
               )}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* 100% celebration */}
-      <AnimatePresence>
-        {complete && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-            className="mt-2 text-center text-xs text-green-600 font-medium"
-          >
-            🎉 {phrase}
           </motion.div>
         )}
       </AnimatePresence>

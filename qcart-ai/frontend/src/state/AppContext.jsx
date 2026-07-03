@@ -21,6 +21,7 @@ export function AppProvider({ children }) {
   paymentOffers: [],
   savedPayments: [],
   query: "",
+  momentLabel: "",
 });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -75,7 +76,7 @@ export function AppProvider({ children }) {
   );
 
   const momentName = (() => {
-    if (meta.query) return meta.query.trim().toLowerCase();
+    if (meta.momentLabel) return meta.momentLabel.toLowerCase();
     const fromLabel = raw.label?.replace(/\s*readiness\s*$/i, "").trim();
     if (fromLabel) return fromLabel.toLowerCase();
     if (meta.context && !["routine", "other"].includes(meta.context)) {
@@ -103,14 +104,14 @@ export function AppProvider({ children }) {
     complete:
       present.length === raw.essentials.length,
   };
-}, [meta.readiness, meta.query, meta.context, cart]);
+}, [meta.readiness, meta.momentLabel, meta.context, cart]);
 
   const paymentOffers = useMemo(() => {
     const fillerPool = [...(meta.suggestions || []), ...(meta.gapFillers || [])];
     return computePaymentOffers(cart, subtotal, meta.context, fillerPool);
   }, [cart, subtotal, meta.context, meta.suggestions, meta.gapFillers]);
 
-  const applyCartResponse = useCallback((res, queryText, buildTime) => {
+  const applyCartResponse = useCallback((res, queryText, buildTime, momentLabel) => {
     setCart(res.cart);
     setMeta({
       context: res.context,
@@ -124,6 +125,7 @@ export function AppProvider({ children }) {
       paymentOffers: res.payment_offers || [],
       savedPayments: res.saved_payments || [],
       query: queryText,
+      momentLabel: momentLabel || "",
     });
     setMessages((m) => [...m, { role: "assistant", text: res.reply }]);
     if (res.cart.length > 0) setCartOpen(true);
@@ -160,6 +162,7 @@ export function AppProvider({ children }) {
     async (moment) => {
       if (!moment?.id || loading) return;
       const queryText = moment.intent || moment.label;
+      const displayLabel = moment.label || "";
       setMessages((m) => [...m, { role: "user", text: queryText }]);
       setLoading(true);
       setError("");
@@ -168,7 +171,7 @@ export function AppProvider({ children }) {
       try {
         const res = await fetchMomentCart(moment.id, customerId, city);
         const buildTime = ((performance.now() - startTime) / 1000).toFixed(1);
-        applyCartResponse(res, queryText, buildTime);
+        applyCartResponse(res, queryText, buildTime, displayLabel);
       } catch (e) {
         try {
           const res = await sendTurn({
@@ -178,7 +181,7 @@ export function AppProvider({ children }) {
             city,
           });
           const buildTime = ((performance.now() - startTime) / 1000).toFixed(1);
-          applyCartResponse(res, queryText, buildTime);
+          applyCartResponse(res, queryText, buildTime, displayLabel);
         } catch (fallbackErr) {
           setError(fallbackErr.message || e.message);
         }
@@ -233,7 +236,7 @@ const swapItem = useCallback((oldId, newProduct) => {
 
   const clearCart = useCallback(() => {
     setCart([]);
-    setMeta((prev) => ({ ...prev, suggestions: [], gapFillers: [] }));
+    setMeta((prev) => ({ ...prev, suggestions: [], gapFillers: [], readiness: null, momentLabel: "" }));
   }, []);
 
   // ── City selection & trending fetch ─────────────────────────────────────────
@@ -322,6 +325,8 @@ const swapItem = useCallback((oldId, newProduct) => {
       readiness,
       paymentOffers,
       gapAmount,
+      // Shared response handler (reused by moments + predictions)
+      applyCartResponse,
       // Data
       orderHistory: ORDER_HISTORY,
       // City & Trending
@@ -339,6 +344,7 @@ const swapItem = useCallback((oldId, newProduct) => {
       cart, addProduct, removeItem, setQty,swapItem, subtotal, clearCart,
       messages, send, sendMoment, loading, error,
       themeState, cartOpen, chatOpen, meta, readiness, paymentOffers, gapAmount,
+      applyCartResponse,
       city, cities, setCity, trendingProducts, trendingLoading,
       customerId, customerProfile,
     ]

@@ -27,7 +27,7 @@ function withImage(product) {
 }
 
 export default function ForYou() {
-  const { city, addProduct, customerId, setCustomerId, setCustomerProfile } = useApp();
+  const { city, customerId, setCustomerId, setCustomerProfile, applyCartResponse } = useApp();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -120,7 +120,28 @@ export default function ForYou() {
           {/* 4. Predicted For You */}
           <PredictedForYouCard
             predictions={predictions}
-            onAddKit={(prediction) => prediction.cart?.forEach((item) => addProduct(item))}
+            onAddKit={(prediction) => {
+              const cartLines = (prediction.cart || []).map((item) => ({
+                ...item,
+                quantity: item.quantity || 1,
+                reason: item.reason || prediction.label || "",
+                line_total: item.price * (item.quantity || 1),
+              }));
+              const syntheticResponse = {
+                reply: `Added your "${prediction.label}" kit.`,
+                context: "routine",
+                urgency: "normal",
+                cart: cartLines,
+                suggestions: [],
+                readiness: null,
+                free_delivery_threshold: 399,
+                gap_fillers: [],
+                recipe: null,
+                payment_offers: [],
+                saved_payments: [],
+              };
+              applyCartResponse(syntheticResponse, prediction.label || "predicted kit", "0.0", prediction.label || "predicted kit");
+            }}
           />
 
           {/* 5. Recommended */}

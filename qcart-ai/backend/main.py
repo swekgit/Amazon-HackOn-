@@ -365,9 +365,9 @@ def _generate_cart_payload(
         "gap_fillers": gap_info["gap_fillers"],
         "payment_offers": payment_offers,
         "saved_payments": [
-            {"label": "ICICI Credit Card", "last4": "4521"},
-            {"label": "Amazon Pay UPI", "last4": ""},
-            {"label": "HDFC Debit Card", "last4": "8890"},
+            {"label": "ICICI Credit Card", "last4": "4521", "offer_id": "po_icici"},
+            {"label": "Amazon Pay UPI", "last4": "", "offer_id": "po_amazonpay"},
+            {"label": "HDFC Debit Card", "last4": "8890", "offer_id": ""},
         ],
         "cached": False,
     }

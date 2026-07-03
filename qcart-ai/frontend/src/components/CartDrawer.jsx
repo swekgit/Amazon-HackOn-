@@ -11,6 +11,11 @@ import RecipeCard from "./RecipeCard.jsx";
 /* ── Payment Offers + Saved Payments (Task 4) ──────────────── */
 function PaymentExtras({ paymentOffers, savedPayments, onAdd, selectedPayment, onSelectPayment }) {
   if (!paymentOffers?.length && !savedPayments?.length) return null;
+
+  // Find the best eligible offer to identify the recommended payment method
+  const bestOffer = paymentOffers?.find((o) => o.eligible && o.savings > 0);
+  const recommendedOfferId = bestOffer?.id || "";
+
   return (
     <div className="space-y-3">
       {paymentOffers?.length > 0 && (
@@ -57,17 +62,23 @@ function PaymentExtras({ paymentOffers, savedPayments, onAdd, selectedPayment, o
           <div className="flex flex-wrap gap-2">
             {savedPayments.slice(0, 3).map((pm, i) => {
               const selected = selectedPayment?.label === pm.label;
+              const isRecommended = recommendedOfferId && pm.offer_id === recommendedOfferId;
               return (
                 <button
                   key={pm.id || pm.label || i}
                   type="button"
                   onClick={() => onSelectPayment?.(pm)}
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                  className={`relative inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition ${
                     selected
                       ? "bg-brand-soft text-brand-deep ring-2 ring-brand"
                       : "bg-white text-ink ring-1 ring-line hover:ring-brand/30"
                   }`}
                 >
+                  {isRecommended && (
+                    <span className="absolute -top-2 left-1/2 -translate-x-1/2 rounded-full bg-fresh px-1.5 py-0.5 text-[8px] font-bold text-white uppercase leading-none whitespace-nowrap">
+                      Recommended
+                    </span>
+                  )}
                   {selected && <Check size={12} />}
                   <span>{pm.icon || "💳"}</span>
                   {pm.label}
@@ -337,10 +348,31 @@ export default function CartDrawer() {
                 {/* Compact AI Stats */}
                 {hasCart && <AIStatsRow buildTime={meta.buildTime} itemCount={cart.length} />}
 
-                {/* Readiness Score */}
-                {hasCart && (
+                {/* Readiness Score — shown only for intent-generated carts */}
+                {hasCart && readiness && (
                   <div className="mt-3">
                     <ReadinessPanel readiness={readiness} onAdd={addProduct} />
+                  </div>
+                )}
+
+                {/* Suggested for You — shown when readiness is hidden */}
+                {hasCart && !readiness && visibleSuggestions.length > 0 && (
+                  <div className="mt-3 rounded-xl bg-white p-3 ring-1 ring-black/5 shadow-sm">
+                    <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-2 flex items-center gap-1">
+                      <Sparkles size={11} /> Suggested for you
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {visibleSuggestions.map((item) => (
+                        <button
+                          key={item.id}
+                          onClick={() => addProduct({ ...item, reason: item.reason || "suggested" })}
+                          className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[10px] font-medium text-ink/70 ring-1 ring-black/10 hover:ring-brand/40 transition"
+                        >
+                          <Plus size={9} />
+                          {item.name} · {formatINR(item.price)}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
 
@@ -407,12 +439,37 @@ export default function CartDrawer() {
                   {freeDelivery ? "FREE" : formatINR(29)}
                 </span>
               </div>
-              <div className="border-t border-line pt-1.5 flex justify-between">
-                <span className="text-sm font-semibold text-ink">Total</span>
-                <span className="font-display text-xl font-bold text-ink">
-                  {formatINR(subtotal + (freeDelivery ? 0 : 29))}
-                </span>
-              </div>
+              {(() => {
+                const selectedOfferId = selectedPayment?.offer_id;
+                const matchedOffer = selectedOfferId
+                  ? paymentOffers.find((o) => o.id === selectedOfferId && o.eligible && o.savings > 0)
+                  : null;
+                const discount = matchedOffer?.savings || 0;
+                const total = subtotal + (freeDelivery ? 0 : 29) - discount;
+                return (
+                  <>
+                    {discount > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-fresh font-medium">{matchedOffer.title}</span>
+                        <span className="text-fresh font-medium">-{formatINR(discount)}</span>
+                      </div>
+                    )}
+                    <div className="border-t border-line pt-1.5 flex justify-between">
+                      <span className="text-sm font-semibold text-ink">Total</span>
+                      <div className="text-right">
+                        {discount > 0 && (
+                          <span className="text-xs text-muted line-through mr-2">
+                            {formatINR(subtotal + (freeDelivery ? 0 : 29))}
+                          </span>
+                        )}
+                        <span className="font-display text-xl font-bold text-ink">
+                          {formatINR(total)}
+                        </span>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
             {/* CTA — Yellow primary */}
