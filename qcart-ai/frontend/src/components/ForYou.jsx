@@ -27,8 +27,7 @@ function withImage(product) {
 }
 
 export default function ForYou() {
-  const [customerId, setCustomerId] = useState("cust_ananya");
-  const { city, addProduct } = useApp();
+  const { city, addProduct, customerId, setCustomerId, setCustomerProfile } = useApp();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -48,6 +47,10 @@ export default function ForYou() {
       if (!res.ok) throw new Error("Failed to load recommendations");
       const json = await res.json();
       setData(json);
+      setCustomerProfile({
+        segment: json.customer?.segment || "working",
+        tags: json.tags || [],
+      });
       try {
         const trendRes = await fetch(`/api/trending?city=${encodeURIComponent(city)}`);
         if (trendRes.ok) setTrending(await trendRes.json());

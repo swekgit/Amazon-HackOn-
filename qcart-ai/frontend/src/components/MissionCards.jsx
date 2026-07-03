@@ -1,7 +1,8 @@
 import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
-import { MISSIONS } from "../data/missions.js";
+import { getMomentsForCustomer } from "../data/missions.js";
 import { useApp } from "../state/AppContext.jsx";
+import { useMemo } from "react";
 
 const MISSION_VISUALS = {
   "Movie Night": { iconBg: "bg-purple-50", borderAccent: "border-purple-200" },
@@ -22,7 +23,12 @@ const cardVariants = {
 };
 
 export default function MissionCards({ onMomentSelect }) {
-  const { send, loading } = useApp();
+  const { send, loading, customerProfile, city } = useApp();
+
+  const moments = useMemo(
+    () => getMomentsForCustomer(customerProfile, city),
+    [customerProfile, city]
+  );
 
   const handleSelect = (mi) => {
     onMomentSelect?.(mi.label);
@@ -37,7 +43,7 @@ export default function MissionCards({ onMomentSelect }) {
       </div>
 
       <div className="grid grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-3">
-        {MISSIONS.map((mi, i) => {
+        {moments.map((mi, i) => {
           const visual = MISSION_VISUALS[mi.label] || { iconBg: "bg-gray-50", borderAccent: "border-gray-200" };
           return (
             <motion.button

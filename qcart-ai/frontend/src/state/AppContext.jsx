@@ -33,6 +33,12 @@ export function AppProvider({ children }) {
   const [trendingProducts, setTrendingProducts] = useState([]);
   const [trendingLoading, setTrendingLoading] = useState(false);
 
+  const [customerId, setCustomerId] = useState("cust_ananya");
+  const [customerProfile, setCustomerProfile] = useState({
+    segment: "working",
+    tags: [],
+  });
+
   const themeState = useTheme();
 
   const subtotal = useMemo(
@@ -231,6 +237,19 @@ const swapItem = useCallback((oldId, newProduct) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    fetch(`/api/foryou?customer_id=${customerId}&city=${encodeURIComponent(city)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (!json) return;
+        setCustomerProfile({
+          segment: json.customer?.segment || "working",
+          tags: json.tags || [],
+        });
+      })
+      .catch(() => {});
+  }, [customerId, city]);
+
   const value = useMemo(
     () => ({
       // Cart
@@ -270,12 +289,17 @@ const swapItem = useCallback((oldId, newProduct) => {
       setCity,
       trendingProducts,
       trendingLoading,
+      customerId,
+      setCustomerId,
+      customerProfile,
+      setCustomerProfile,
     }),
     [
       cart, addProduct, removeItem, setQty,swapItem, subtotal, clearCart,
       messages, send, loading, error,
       themeState, cartOpen, chatOpen, meta, readiness, paymentOffers, gapAmount,
       city, cities, setCity, trendingProducts, trendingLoading,
+      customerId, customerProfile,
     ]
   );
 
