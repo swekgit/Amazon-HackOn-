@@ -21,7 +21,7 @@ function ProductImage({ product }) {
       src={src}
       alt={product.name}
       onError={() => setErrored(true)}
-      className="h-20 w-full object-cover bg-gray-50"
+      className="h-24 w-full object-contain bg-gray-50 p-1"
     />
   );
 }
