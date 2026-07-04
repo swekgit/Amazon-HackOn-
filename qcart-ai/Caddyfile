@@ -1,0 +1,9 @@
+3.95.206.3.nip.io {
+    reverse_proxy frontend:80
+
+    tls {
+        issuer acme {
+            disable_http_challenge
+        }
+    }
+}
