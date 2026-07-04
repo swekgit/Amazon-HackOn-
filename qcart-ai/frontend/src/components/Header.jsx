@@ -2,12 +2,16 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, ShoppingCart, User, Zap, ChevronDown } from "lucide-react";
 import { useApp } from "../state/AppContext.jsx";
+import { CUSTOMERS } from "../lib/constants.js";
 
 export default function Header() {
-  const { cart, setCartOpen, city, cities, setCity } = useApp();
+  const { cart, setCartOpen, city, cities, setCity, customerId, setCustomerId } = useApp();
   const [scrolled, setScrolled] = useState(false);
   const [cityOpen, setCityOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const cityRef = useRef(null);
+  const profileRef = useRef(null);
+  const activeCustomer = CUSTOMERS.find((c) => c.value === customerId);
   const itemCount = cart.reduce((s, i) => s + i.quantity, 0);
 
   useEffect(() => {
@@ -24,6 +28,15 @@ export default function Header() {
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, [cityOpen]);
+
+  useEffect(() => {
+    if (!profileOpen) return;
+    const onClickOutside = (e) => {
+      if (profileRef.current && !profileRef.current.contains(e.target)) setProfileOpen(false);
+    };
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [profileOpen]);
 
   return (
     <motion.header
@@ -115,10 +128,54 @@ export default function Header() {
               )}
             </button>
 
-            {/* Profile */}
-            <button className="p-1.5 sm:p-2 rounded-xl hover:bg-canvas transition" aria-label="Profile">
-              <User size={18} className="text-ink sm:w-[20px] sm:h-[20px]" />
-            </button>
+            {/* Profile / customer switcher */}
+            <div className="relative" ref={profileRef}>
+              <button
+                onClick={() => setProfileOpen((v) => !v)}
+                className="flex items-center gap-1 sm:gap-1.5 rounded-full bg-canvas px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm ring-1 ring-line hover:ring-brand/30 transition"
+                aria-label={`Profile: ${activeCustomer?.label || "Customer"}`}
+                aria-expanded={profileOpen}
+              >
+                <User size={11} className="text-brand sm:w-[13px] sm:h-[13px]" />
+                <span className="font-medium text-ink text-[10px] sm:text-xs">
+                  {activeCustomer?.label || "Customer"}
+                </span>
+                <ChevronDown size={10} className={`text-muted transition-transform sm:w-[11px] sm:h-[11px] ${profileOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              <AnimatePresence>
+                {profileOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -4, scale: 0.97 }}
+                    transition={{ duration: 0.12 }}
+                    className="absolute top-full right-0 mt-1 w-44 bg-white rounded-xl shadow-xl ring-1 ring-line overflow-hidden z-50"
+                  >
+                    <div className="px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted border-b border-line">
+                      Switch customer
+                    </div>
+                    {CUSTOMERS.map((c) => (
+                      <button
+                        key={c.value}
+                        onClick={() => {
+                          setCustomerId(c.value);
+                          setProfileOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center gap-2 ${
+                          c.value === customerId
+                            ? "bg-brand-soft text-brand-deep font-semibold"
+                            : "text-ink hover:bg-canvas"
+                        }`}
+                      >
+                        <User size={11} className={c.value === customerId ? "text-brand" : "text-muted"} />
+                        {c.label}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </div>
       </div>

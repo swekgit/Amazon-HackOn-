@@ -4,17 +4,6 @@ import { useApp } from "../state/AppContext.jsx";
 import ProductCard from "./ProductCard.jsx";
 import PredictedForYouCard from "./PredictedForYouCard.jsx";
 
-const CUSTOMERS = [
-  { label: "Ravi", value: "cust_ravi" },
-  { label: "Priya", value: "cust_priya" },
-  { label: "Aarav", value: "cust_aarav" },
-  { label: "Sneha", value: "cust_sneha" },
-  { label: "Karan", value: "cust_karan" },
-  { label: "Ananya", value: "cust_ananya" },
-  { label: "Rohan", value: "cust_rohan" },
-  { label: "Meera", value: "cust_meera" },
-];
-
 const S3 = "https://qcart-ai-apoorva-images.s3.ap-south-1.amazonaws.com/products/";
 
 /** Normalise any product shape so ProductCard always gets .image */
@@ -27,7 +16,7 @@ function withImage(product) {
 }
 
 export default function ForYou() {
-  const { city, customerId, setCustomerId, setCustomerProfile, applyCartResponse } = useApp();
+  const { city, customerId, setCustomerProfile, applyCartResponse } = useApp();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -76,21 +65,9 @@ export default function ForYou() {
   return (
     <div className="space-y-8">
       {/* 1. Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-display text-2xl text-ink">For You</h1>
-          <p className="text-sm text-ink/60">Personalised picks based on your preferences</p>
-        </div>
-        {/* 2. Customer selector */}
-        <select
-          value={customerId}
-          onChange={(e) => setCustomerId(e.target.value)}
-          className="rounded-xl border border-black/10 bg-white px-4 py-2 text-sm shadow-sm outline-none focus:ring-2 focus:ring-smart"
-        >
-          {CUSTOMERS.map((c) => (
-            <option key={c.value} value={c.value}>{c.label}</option>
-          ))}
-        </select>
+      <div>
+        <h1 className="font-display text-2xl text-ink">For You</h1>
+        <p className="text-sm text-ink/60">Personalised picks based on your preferences</p>
       </div>
 
       {/* Loading */}
