@@ -34,7 +34,7 @@ export function AppProvider({ children }) {
   const [trendingProducts, setTrendingProducts] = useState([]);
   const [trendingLoading, setTrendingLoading] = useState(false);
 
-  const [customerId, setCustomerId] = useState("cust_ananya");
+  const [customerId, setCustomerId] = useState("cust_meera");
   const [customerProfile, setCustomerProfile] = useState({
     segment: "working",
     tags: [],
