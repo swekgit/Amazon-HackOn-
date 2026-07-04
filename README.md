@@ -144,19 +144,19 @@ moment.
 +-----------------------------------v-----------------------------------+
 |                      API LAYER — FastAPI (Python)                     |
 |                                                                       |
-|   +-------------+   +------------------+   +----------------------+    |
-|   | AI / Brain  |   | Retrieval (RAG)  |   | Personalization      |    |
-|   | Bedrock     |   | Amazon Titan     |   | Engine (rules):      |    |
-|   | Nova Pro    |<->| embeddings +     |   | segment + tags +     |    |
-|   | (cart) +    |   | vector kNN over  |   | city + time          |    |
-|   | Nova Lite   |   | 1000 SKUs        |   | (deterministic)      |    |
-|   +-------------+   +--------+---------+   +----------+-----------+    |
+|   +-------------+   +------------------+   +----------------------+   |
+|   | AI / Brain  |   | Retrieval (RAG)  |   | Personalization      |   |
+|   | Bedrock     |   | Amazon Titan     |   | Engine (rules):      |   |
+|   | Nova Pro    |<->| embeddings +     |   | segment + tags +     |   |
+|   | (cart) +    |   | vector kNN over  |   | city + time          |   |
+|   | Nova Lite   |   | 1000 SKUs        |   | (deterministic)      |   |
+|   +-------------+   +--------+---------+   +----------+-----------+   |
 |         |                    |                        |               |
-|   +-----v--------+   +-------v--------+   +------------v-----------+    |
-|   | Gap Engine   |   | Response Cache |   | Model Router           |    |
-|   | (readiness / |   | (in-memory,    |   | (region-aware,         |    |
-|   | free-deliv.) |   | SHA-256 keyed) |   | multi-model failover)  |    |
-|   +--------------+   +----------------+   +------------------------+    |
+|   +-----v--------+   +-------v--------+   +------------v-----------+  |
+|   | Gap Engine   |   | Response Cache |   | Model Router           |  |
+|   | (readiness / |   | (in-memory,    |   | (region-aware,         |  |
+|   | free-deliv.) |   | SHA-256 keyed) |   | multi-model failover)  |  |
+|   +--------------+   +----------------+   +------------------------+  |
 +-----------------------------------+-----------------------------------+
                                     |
       +-----------------------------+-----------------------------+
