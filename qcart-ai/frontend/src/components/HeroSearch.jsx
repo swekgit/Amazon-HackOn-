@@ -31,6 +31,8 @@ export default function HeroSearch({ onSubmit }) {
   const [placeholders, setPlaceholders] = useState(DEFAULT_PLACEHOLDERS);
   const [quickPicks, setQuickPicks] = useState(FALLBACK_CHIPS);
   const inputRef = useRef(null);
+  const pendingQueryRef = useRef(null);
+  const wasLoadingRef = useRef(false);
 
   useEffect(() => {
     const moments = (missionMoments || []).slice(0, 5);
@@ -75,17 +77,26 @@ export default function HeroSearch({ onSubmit }) {
     return () => clearInterval(timer);
   }, [placeholderIdx, isTyping, placeholders]);
 
-  // Submit logic — UNCHANGED except onSubmit callback
+  // Submit logic — keep query visible until the API finishes
   const submit = useCallback(
     (value) => {
       const v = (value ?? text).trim();
       if (!v || loading) return;
+      setText(v);
+      pendingQueryRef.current = v;
       onSubmit?.(v);
       send(v);
-      setText("");
     },
     [text, loading, send, onSubmit]
   );
+
+  useEffect(() => {
+    if (pendingQueryRef.current && wasLoadingRef.current && !loading) {
+      setText("");
+      pendingQueryRef.current = null;
+    }
+    wasLoadingRef.current = loading;
+  }, [loading]);
 
   const handleChipSelect = useCallback(
     (moment) => {
@@ -201,14 +212,10 @@ export default function HeroSearch({ onSubmit }) {
               )}
             </div>
 
-            {/* Voice button — shows transcript before sending */}
+            {/* Voice button — shows transcript until results arrive */}
             <div className="shrink-0 scale-90 sm:scale-100 origin-right">
               <VoiceButton
-                onResult={(t) => {
-                  setText(t);
-                  // Brief delay so user sees the recognized text
-                  setTimeout(() => submit(t), 400);
-                }}
+                onResult={(t) => submit(t)}
                 disabled={loading}
               />
             </div>
