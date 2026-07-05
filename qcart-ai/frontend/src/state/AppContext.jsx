@@ -28,6 +28,10 @@ export function AppProvider({ children }) {
   const [cartOpen, setCartOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
 
+  // ── Preview (proposed) cart — used ONLY by the AI Shopping Assistant panel ────
+  const [previewCart, setPreviewCart] = useState(null); // null = no active proposal
+  const [previewMeta, setPreviewMeta] = useState(null);
+
   // ── City & Trending state ──────────────────────────────────────────────────
   const [city, setCityRaw] = useState("Bangalore");
   const [cities, setCities] = useState([]);
@@ -46,6 +50,10 @@ export function AppProvider({ children }) {
   const subtotal = useMemo(
     () => cart.reduce((s, i) => s + i.price * i.quantity, 0),
     [cart]
+  );
+  const previewSubtotal = useMemo(
+    () => (previewCart || []).reduce((s, i) => s + i.price * i.quantity, 0),
+    [previewCart]
   );
   const gapAmount = Math.max(0, meta.threshold - subtotal);
 
@@ -132,6 +140,26 @@ export function AppProvider({ children }) {
     if (res.cart.length > 0) setCartOpen(true);
   }, []);
 
+  const applyPreviewResponse = useCallback((res, queryText, buildTime, momentLabel) => {
+    setPreviewCart(res.cart);
+    setPreviewMeta({
+      context: res.context,
+      urgency: res.urgency,
+      threshold: res.free_delivery_threshold,
+      gapFillers: res.gap_fillers || [],
+      suggestions: res.suggestions || [],
+      readiness: res.readiness || null,
+      buildTime,
+      recipe: res.recipe || null,
+      paymentOffers: res.payment_offers || [],
+      savedPayments: res.saved_payments || [],
+      query: queryText,
+      momentLabel: momentLabel || "",
+    });
+    setMessages((m) => [...m, { role: "assistant", text: res.reply }]);
+    setChatOpen(true);
+  }, []);
+
   const send = useCallback(
     async (text) => {
       const value = (text || "").trim();
@@ -157,6 +185,33 @@ export function AppProvider({ children }) {
       }
     },
     [loading, cart, themeState, customerId, city, applyCartResponse]
+  );
+
+  const sendPreview = useCallback(
+    async (text) => {
+      const value = (text || "").trim();
+      if (!value || loading) return;
+      setMessages((m) => [...m, { role: "user", text: value }]);
+      setLoading(true);
+      setError("");
+      themeState.setThemeByContext(value);
+      const startTime = performance.now();
+      try {
+        const res = await sendTurn({
+          message: value,
+          cart: previewCart ?? [],
+          customerId,
+          city,
+        });
+        const buildTime = ((performance.now() - startTime) / 1000).toFixed(1);
+        applyPreviewResponse(res, value, buildTime);
+      } catch (e) {
+        setError(e.message);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [loading, previewCart, themeState, customerId, city, applyPreviewResponse]
   );
 
   const sendMoment = useCallback(
@@ -240,6 +295,34 @@ const swapItem = useCallback((oldId, newProduct) => {
     setMeta((prev) => ({ ...prev, suggestions: [], gapFillers: [], readiness: null, momentLabel: "" }));
   }, []);
 
+  const confirmPreview = useCallback(() => {
+    if (!previewCart || previewCart.length === 0) return;
+    setCart((current) => {
+      const merged = [...current];
+      for (const p of previewCart) {
+        const addQty = p.quantity || 1;
+        const idx = merged.findIndex((i) => i.id === p.id);
+        if (idx >= 0) {
+          const q = merged[idx].quantity + addQty;
+          merged[idx] = { ...merged[idx], quantity: q, line_total: merged[idx].price * q };
+        } else {
+          merged.push({ ...p, quantity: addQty, line_total: p.price * addQty });
+        }
+      }
+      return merged;
+    });
+    if (previewMeta) setMeta(previewMeta);
+    setPreviewCart(null);
+    setPreviewMeta(null);
+    setChatOpen(false);
+    setCartOpen(true);
+  }, [previewCart, previewMeta]);
+
+  const discardPreview = useCallback(() => {
+    setPreviewCart(null);
+    setPreviewMeta(null);
+  }, []);
+
   // ── City selection & trending fetch ─────────────────────────────────────────
 
  const loadTrending = useCallback(async (targetCity) => {
@@ -315,6 +398,13 @@ const swapItem = useCallback((oldId, newProduct) => {
       setCartOpen,
       chatOpen,
       setChatOpen,
+      // Preview (proposed) cart — assistant only
+      sendPreview,
+      previewCart,
+      previewSubtotal,
+      hasPreview: !!previewCart && previewCart.length > 0,
+      confirmPreview,
+      discardPreview,
       // Meta
       meta,
       readiness,
@@ -338,6 +428,7 @@ const swapItem = useCallback((oldId, newProduct) => {
     }),
     [
       cart, addProduct, removeItem, setQty,swapItem, subtotal, clearCart,
+      sendPreview, previewCart, previewSubtotal, confirmPreview, discardPreview,
       messages, send, sendMoment, loading, error,
       themeState, cartOpen, chatOpen, meta, readiness, paymentOffers, gapAmount,
       applyCartResponse,

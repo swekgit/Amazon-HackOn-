@@ -11,7 +11,7 @@ const QUICK_ACTIONS = [
 ];
 
 export default function ConversationalPanel() {
-  const { messages, send, loading, setChatOpen } = useApp();
+  const { messages, sendPreview, loading, setChatOpen, hasPreview, previewCart, previewSubtotal, confirmPreview, discardPreview } = useApp();
   const [text, setText] = useState("");
   const scrollRef = useRef(null);
 
@@ -24,7 +24,7 @@ export default function ConversationalPanel() {
   const submit = (value) => {
     const v = (value ?? text).trim();
     if (!v || loading) return;
-    send(v);
+    sendPreview(v);
     setText("");
   };
 
@@ -97,6 +97,41 @@ export default function ConversationalPanel() {
             </div>
           )}
         </div>
+
+        {hasPreview && (
+          <div className="mx-3 mb-2 rounded-xl border border-smart/20 bg-white/80 p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs font-semibold text-smart-dark">
+                Proposed cart · {previewCart.length} item{previewCart.length > 1 ? "s" : ""}
+              </span>
+              <span className="text-xs font-semibold text-ink">₹{previewSubtotal}</span>
+            </div>
+            <div className="max-h-28 space-y-1 overflow-y-auto">
+              {previewCart.map((it) => (
+                <div key={it.id} className="flex items-center justify-between text-xs text-ink/70">
+                  <span className="truncate pr-2">{it.quantity}× {it.name}</span>
+                  <span className="shrink-0">₹{it.price * it.quantity}</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={confirmPreview}
+                disabled={loading}
+                className="flex-1 rounded-lg bg-smart py-2 text-sm font-medium text-white transition disabled:opacity-40"
+              >
+                Add to cart
+              </button>
+              <button
+                onClick={discardPreview}
+                disabled={loading}
+                className="rounded-lg px-3 text-sm text-ink/60 transition hover:bg-black/5 disabled:opacity-40"
+              >
+                Discard
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Quick actions */}
         <div className="px-4 pb-2 flex flex-wrap gap-1.5">

@@ -4,7 +4,6 @@ import Header from "./components/Header.jsx";
 import HeroSearch from "./components/HeroSearch.jsx";
 import SlimAssistantBar from "./components/SlimAssistantBar.jsx";
 import AIAssistantPanel from "./components/AIAssistantPanel.jsx";
-import MissionCards from "./components/MissionCards.jsx";
 import BuyAgainNow from "./components/BuyAgainNow.jsx";
 import OfferBanners from "./components/OfferBanners.jsx";
 import TrendingMoments from "./components/TrendingMoments.jsx";
@@ -45,11 +44,6 @@ export default function App() {
   const handleSearchSubmit = useCallback((text) => {
     const moment = detectMomentFromText(text);
     if (moment) setDetectedMoment(moment);
-  }, []);
-
-  // Called from MissionCards when a moment is selected
-  const handleMomentSelect = useCallback((momentKey) => {
-    setDetectedMoment(momentKey);
   }, []);
 
   return (
@@ -143,11 +137,6 @@ export default function App() {
                     <AIAssistantPanel detectedMoment={detectedMoment} />
                   )}
                 </AnimatePresence>
-
-                {/* 2. What's Your Moment — scenario cards */}
-                <motion.section variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }}>
-                  <MissionCards onMomentSelect={handleMomentSelect} />
-                </motion.section>
 
                 {/* 3. Buy Again — order history */}
                 <motion.section variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }}>

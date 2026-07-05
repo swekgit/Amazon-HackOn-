@@ -474,7 +474,11 @@ export default function CartDrawer() {
 
             {/* CTA — Yellow primary */}
             <button
-              onClick={() => setPlaced(true)}
+              onClick={() => {
+                setPlaced(true);
+                clearCart();
+                setSelectedPayment(null);
+              }}
               className="w-full flex items-center justify-center gap-2 rounded-full bg-amazonYellow py-3.5 font-display font-bold text-ink shadow-md hover:shadow-lg hover:bg-yellow-400 transition-all"
             >
               <Zap size={16} />
