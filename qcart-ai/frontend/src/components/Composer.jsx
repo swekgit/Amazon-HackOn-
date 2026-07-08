@@ -21,7 +21,11 @@ export default function Composer({ onSend, loading, placeholder }) {
         placeholder={placeholder || "What do you need?"}
         className="min-w-0 flex-1 bg-transparent py-2.5 text-ink placeholder:text-ink/35 focus:outline-none"
       />
-      <VoiceButton onResult={(t) => submit(t)} disabled={loading} />
+      <VoiceButton
+        onResult={(t) => submit(t)}
+        onInterim={(t) => setText(t)}
+        disabled={loading}
+      />
       <button
         onClick={() => submit()}
         disabled={loading || !text.trim()}

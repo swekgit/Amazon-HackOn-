@@ -216,6 +216,7 @@ export default function HeroSearch({ onSubmit }) {
             <div className="shrink-0 scale-90 sm:scale-100 origin-right">
               <VoiceButton
                 onResult={(t) => submit(t)}
+                onInterim={(t) => setText(t)}
                 disabled={loading}
               />
             </div>

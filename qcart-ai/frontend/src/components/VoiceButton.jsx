@@ -2,11 +2,29 @@ import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Mic } from "lucide-react";
 
-export default function VoiceButton({ onResult, disabled }) {
+export default function VoiceButton({ onResult, onInterim, disabled }) {
   const [supported, setSupported] = useState(false);
   const [status, setStatus] = useState("idle"); // idle | listening | error
   const recRef = useRef(null);
   const resetTimerRef = useRef(null);
+
+  // User intent: true between click-to-start and click-to-stop (or unmount).
+  // Distinct from the actual "running" state so we can auto-restart on
+  // spurious onend (silence timeouts) without stopping the session.
+  const isListeningRef = useRef(false);
+  // Actual running state, set between onstart/onend. Guards double start().
+  const runningRef = useRef(false);
+  // Accumulates final transcript segments across the session.
+  const finalTranscriptRef = useRef("");
+
+  // Keep latest callbacks in refs so the recognition object is created
+  // only once (instead of every parent render).
+  const onResultRef = useRef(onResult);
+  const onInterimRef = useRef(onInterim);
+  useEffect(() => {
+    onResultRef.current = onResult;
+    onInterimRef.current = onInterim;
+  }, [onResult, onInterim]);
 
   useEffect(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -16,62 +34,114 @@ export default function VoiceButton({ onResult, disabled }) {
 
     const rec = new SR();
     rec.lang = "en-IN";
-    rec.interimResults = false;
+    rec.continuous = true;
+    rec.interimResults = true;
     rec.maxAlternatives = 1;
 
     rec.onstart = () => {
+      runningRef.current = true;
       setStatus("listening");
     };
 
     rec.onresult = (e) => {
-      const text = e.results?.[0]?.[0]?.transcript?.trim();
-      if (text) onResult(text);
-    };
-
-    rec.onend = () => {
-      setStatus((s) => (s === "error" ? s : "idle"));
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const res = e.results[i];
+        const chunk = res[0]?.transcript ?? "";
+        if (res.isFinal) {
+          finalTranscriptRef.current =
+            (finalTranscriptRef.current + " " + chunk).replace(/\s+/g, " ").trim();
+        } else {
+          interim += chunk;
+        }
+      }
+      const live = (finalTranscriptRef.current + " " + interim)
+        .replace(/\s+/g, " ")
+        .trim();
+      if (live) onInterimRef.current?.(live);
     };
 
     rec.onerror = (e) => {
+      // Hard errors — actually give up and surface UI.
       if (
         e.error === "not-allowed" ||
         e.error === "service-not-allowed" ||
         e.error === "audio-capture"
       ) {
+        isListeningRef.current = false;
         setStatus("error");
-
         clearTimeout(resetTimerRef.current);
-        resetTimerRef.current = setTimeout(() => {
-          setStatus("idle");
-        }, 1800);
-      } else {
-        setStatus("idle");
+        resetTimerRef.current = setTimeout(() => setStatus("idle"), 1800);
+        return;
       }
+      // Soft errors like "no-speech", "aborted", "network": don't die.
+      // Let onend decide whether to restart (based on user intent).
+    };
+
+    rec.onend = () => {
+      runningRef.current = false;
+
+      // If the user still wants to be listening, this was a spurious end
+      // (silence timeout, browser hiccup). Restart the same instance.
+      if (isListeningRef.current) {
+        try {
+          rec.start();
+        } catch {
+          // InvalidStateError if it's already restarting — safe to ignore.
+        }
+        return;
+      }
+
+      // User stopped (or unmount). Submit whatever we collected.
+      setStatus((s) => (s === "error" ? s : "idle"));
+      const finalText = finalTranscriptRef.current.trim();
+      finalTranscriptRef.current = "";
+      if (finalText) onResultRef.current?.(finalText);
     };
 
     recRef.current = rec;
 
     return () => {
       clearTimeout(resetTimerRef.current);
-      rec.stop?.();
+      isListeningRef.current = false;
+      try {
+        rec.stop();
+      } catch {
+        // ignore
+      }
     };
-  }, [onResult]);
+  }, []);
 
   if (!supported) return null;
 
   const toggle = () => {
-    if (!recRef.current || disabled) return;
+    const rec = recRef.current;
+    if (!rec || disabled) return;
 
-    if (status === "listening") {
-      recRef.current.stop();
+    // Second click — stop and let onend submit the final transcript.
+    if (isListeningRef.current) {
+      isListeningRef.current = false;
+      try {
+        rec.stop();
+      } catch {
+        // ignore
+      }
       return;
     }
 
+    // First click — start a fresh session.
+    isListeningRef.current = true;
+    finalTranscriptRef.current = "";
+    setStatus("listening");
+
+    // Guard against double start(): calling start() while already running
+    // throws InvalidStateError and kills the session.
+    if (runningRef.current) return;
+
     try {
-      setStatus("listening");
-      recRef.current.start();
+      rec.start();
     } catch {
-      setStatus("idle");
+      // Already starting/started — swallow and stay in listening state.
     }
   };
 
@@ -99,7 +169,7 @@ export default function VoiceButton({ onResult, disabled }) {
         onClick={toggle}
         disabled={disabled}
         whileTap={{ scale: 0.95 }}
-        aria-label="Speak your need"
+        aria-label={listening ? "Stop listening and search" : "Speak your need"}
         className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-xl ring-1 transition disabled:opacity-40 ${
           listening
             ? "bg-rose-600 text-white ring-rose-600"
